@@ -10,16 +10,21 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. ADVANCED UI/UX STYLING (Responsive) ---
+# --- 2. ADVANCED UI/UX STYLING (Gradient Edition) ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800&family=Poppins:wght@900&display=swap');
 
-    /* --- ANIMATED BACKGROUND --- */
+    /* --- ANIMATED GRADIENT BACKGROUND --- */
     .stApp {
-        background: linear-gradient(-45deg, #FF3CAC, #784BA0, #2B86C5, #23d5ab);
+        background: linear-gradient(-45deg, 
+            #667eea 0%, 
+            #764ba2 25%, 
+            #f093fb 50%, 
+            #f5576c 75%, 
+            #ff9a9e 100%);
         background-size: 400% 400%;
-        animation: gradientBG 15s ease infinite;
+        animation: gradientBG 20s ease infinite;
         font-family: 'Nunito', sans-serif;
         min-height: 100vh;
     }
@@ -43,242 +48,431 @@ st.markdown("""
         }
     }
 
-    /* --- GLASSMORPHISM CONTAINERS --- */
+    /* --- GLASSMORPHISM CONTAINERS WITH GRADIENTS --- */
     .glass-panel {
-        background: rgba(255, 255, 255, 0.92);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.6);
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
-        border-radius: 20px;
-        padding: 20px;
-        margin-bottom: 15px;
-        height: fit-content;
+        background: linear-gradient(135deg, 
+            rgba(255, 255, 255, 0.95) 0%, 
+            rgba(255, 255, 255, 0.88) 100%);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+        border-radius: 25px;
+        padding: 25px;
+        margin-bottom: 20px;
+        position: relative;
+        overflow: hidden;
     }
 
-    /* --- TYPOGRAPHY --- */
+    .glass-panel::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, 
+            #667eea 0%, 
+            #764ba2 33%, 
+            #f093fb 66%, 
+            #f5576c 100%);
+        z-index: 1;
+    }
+
+    /* --- GRADIENT TYPOGRAPHY --- */
     h1, h2, h3 { 
         font-family: 'Poppins', sans-serif;
         margin-top: 0 !important;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     
     .hero-title {
-        font-size: 2.8rem;
+        font-size: 3rem;
         font-weight: 900;
-        background: linear-gradient(90deg, #FF3CAC, #784BA0, #FF8C00);
+        background: linear-gradient(90deg, 
+            #667eea 0%, 
+            #764ba2 25%, 
+            #f093fb 50%, 
+            #f5576c 75%, 
+            #ff9a9e 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
+        background-clip: text;
         margin: 0;
         text-align: center;
         letter-spacing: -1px;
         line-height: 1.2;
+        position: relative;
+        padding-bottom: 10px;
+    }
+
+    .hero-title::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 25%;
+        width: 50%;
+        height: 3px;
+        background: linear-gradient(90deg, 
+            #667eea 0%, 
+            #764ba2 50%, 
+            #f093fb 100%);
+        border-radius: 2px;
     }
     
     .hero-subtitle {
         text-align: center;
-        color: #666;
-        font-weight: 600;
-        margin: 5px 0 15px 0;
-        font-size: 1rem;
+        background: linear-gradient(90deg, #667eea, #764ba2);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 700;
+        margin: 10px 0 20px 0;
+        font-size: 1.1rem;
+        letter-spacing: 1px;
     }
 
-    @media (max-width: 768px) {
-        .hero-title {
-            font-size: 2rem;
-        }
-        .hero-subtitle {
-            font-size: 0.9rem;
-        }
-    }
-
-    /* --- BUTTONS --- */
+    /* --- GRADIENT BUTTONS --- */
     .stButton > button {
         width: 100%;
-        border-radius: 12px;
-        height: 50px;
+        border-radius: 15px;
+        height: 55px;
         font-weight: 800;
         border: none;
-        transition: all 0.3s ease;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         text-transform: uppercase;
-        letter-spacing: 1px;
+        letter-spacing: 1.5px;
         color: white;
-        margin: 5px 0;
-        font-size: 0.9rem;
+        margin: 8px 0;
+        font-size: 0.95rem;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+
+    .stButton > button::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, 
+            transparent, 
+            rgba(255,255,255,0.3), 
+            transparent);
+        transition: 0.5s;
+    }
+
+    .stButton > button:hover::before {
+        left: 100%;
     }
 
     .stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 15px rgba(0,0,0,0.2);
+        transform: translateY(-4px);
+        box-shadow: 0 12px 30px rgba(0,0,0,0.25);
     }
 
     .stButton > button:active {
-        transform: translateY(1px);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.2);
     }
 
-    /* VIP Button - Royal Purple/Gold */
+    /* Regular Add Button - Ocean Blue Gradient */
+    button[kind="secondary"]:has(+ div:contains("Add")) {
+        background: linear-gradient(135deg, 
+            #4facfe 0%, 
+            #00f2fe 100%);
+        border: 2px solid rgba(79, 172, 254, 0.3);
+    }
+
+    /* VIP Button - Royal Purple/Gold Gradient */
     button[kind="secondary"]:has(+ div:contains("VIP")) {
-        background: linear-gradient(135deg, #8A2BE2 0%, #FFD700 100%);
+        background: linear-gradient(135deg, 
+            #8A2BE2 0%, 
+            #FFD700 50%, 
+            #FF8C00 100%);
+        border: 2px solid rgba(255, 215, 0, 0.3);
+        animation: vipGlow 2s infinite alternate;
     }
 
-    /* Regular Add Button - Cool Blue */
-    button[kind="secondary"]:not(:has(+ div:contains("VIP"))) {
-        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    @keyframes vipGlow {
+        0% { box-shadow: 0 8px 25px rgba(138, 43, 226, 0.3); }
+        100% { box-shadow: 0 8px 25px rgba(255, 215, 0, 0.5); }
     }
 
-    /* Serve Button - Sunset Orange */
+    /* Serve Button - Sunset Gradient */
     button[kind="primary"] {
-        background: linear-gradient(135deg, #FF9966 0%, #FF5E62 100%);
+        background: linear-gradient(135deg, 
+            #FF9966 0%, 
+            #FF5E62 50%, 
+            #FF2E63 100%);
+        border: 2px solid rgba(255, 94, 98, 0.3);
+        font-size: 1rem;
     }
 
-    /* Reset Button - Dark */
-    .reset-btn {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    /* Reset Button - Deep Purple Gradient */
+    button[kind="secondary"]:has(+ div:contains("Reset")) {
+        background: linear-gradient(135deg, 
+            #667eea 0%, 
+            #764ba2 100%);
+        border: 2px solid rgba(118, 75, 162, 0.3);
     }
 
-    /* --- TICKET STYLES --- */
+    /* --- GRADIENT TICKET STYLES --- */
     .ticket-container {
         display: flex;
         align-items: center;
-        background: white;
-        border-radius: 14px;
-        padding: 12px;
-        margin-bottom: 10px;
-        box-shadow: 0 3px 10px rgba(0,0,0,0.08);
-        transition: all 0.3s ease;
-        border-left: 6px solid #e0e0e0;
+        background: linear-gradient(135deg, 
+            rgba(255, 255, 255, 0.95) 0%, 
+            rgba(255, 255, 255, 0.9) 100%);
+        border-radius: 18px;
+        padding: 15px;
+        margin-bottom: 12px;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+        transition: all 0.4s ease;
+        border-left: 8px solid #e0e0e0;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .ticket-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, 
+            rgba(255,255,255,0) 0%,
+            rgba(255,255,255,0.1) 100%);
+        z-index: 0;
     }
 
     .ticket-vip {
-        background: linear-gradient(to right, #FFF8E1, #FFFFFF);
-        border-left: 6px solid #FFD700;
-        box-shadow: 0 4px 15px rgba(255, 215, 0, 0.2);
+        background: linear-gradient(135deg, 
+            rgba(255, 248, 225, 0.95) 0%, 
+            rgba(255, 255, 255, 0.9) 100%);
+        border-left: 8px solid #FFD700;
+        box-shadow: 0 8px 25px rgba(255, 215, 0, 0.2);
     }
 
     /* Golden Ticket Animation */
     @keyframes shine {
-        0% { border-color: #FFD700; box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.4); }
-        50% { border-color: #FFA500; box-shadow: 0 0 0 8px rgba(255, 215, 0, 0); }
-        100% { border-color: #FFD700; box-shadow: 0 0 0 0 rgba(255, 215, 0, 0); }
+        0% { 
+            border-color: #FFD700; 
+            box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.3),
+                        inset 0 0 20px rgba(255, 215, 0, 0.1);
+        }
+        50% { 
+            border-color: #FFA500; 
+            box-shadow: 0 0 0 10px rgba(255, 215, 0, 0),
+                        inset 0 0 30px rgba(255, 215, 0, 0.2);
+        }
+        100% { 
+            border-color: #FFD700; 
+            box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.3),
+                        inset 0 0 20px rgba(255, 215, 0, 0.1);
+        }
     }
 
     .ticket-active {
-        background: linear-gradient(to right, #FFFDE4, #FFFFFF);
-        border-left: 6px solid #FFD700;
+        background: linear-gradient(135deg, 
+            rgba(255, 253, 228, 0.95) 0%, 
+            rgba(255, 255, 255, 0.9) 100%);
+        border-left: 8px solid #FFD700;
         animation: shine 2s infinite;
-        transform: scale(1.01);
+        transform: scale(1.02);
     }
 
     .t-emoji { 
-        font-size: 2rem; 
-        margin-right: 12px; 
-        filter: drop-shadow(0 2px 2px rgba(0,0,0,0.1));
-        min-width: 40px;
+        font-size: 2.2rem; 
+        margin-right: 15px; 
+        filter: drop-shadow(0 3px 5px rgba(0,0,0,0.15));
+        min-width: 45px;
         text-align: center;
+        z-index: 1;
+        position: relative;
     }
+    
     .t-details { 
         flex-grow: 1; 
-        min-width: 0; /* Prevents overflow */
+        min-width: 0;
+        z-index: 1;
+        position: relative;
     }
+    
     .t-id { 
         font-weight: 900; 
-        font-size: 1.1rem; 
-        color: #333;
+        font-size: 1.15rem; 
+        background: linear-gradient(90deg, #667eea, #764ba2);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
     }
+    
     .t-name { 
-        font-size: 0.95rem; 
+        font-size: 1rem; 
         color: #555;
-        margin: 2px 0;
+        margin: 3px 0;
+        font-weight: 600;
     }
+    
     .t-meta { 
-        font-size: 0.7rem; 
-        font-weight: 700; 
-        color: #aaa; 
+        font-size: 0.75rem; 
+        font-weight: 800; 
+        background: linear-gradient(90deg, #667eea, #764ba2);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
         text-transform: uppercase; 
-        letter-spacing: 0.5px;
+        letter-spacing: 1px;
     }
+    
     .t-badge {
-        background: #f0f0f0; 
-        color: #666; 
-        padding: 3px 8px; 
-        border-radius: 10px; 
-        font-size: 0.65rem; 
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white; 
+        padding: 5px 12px; 
+        border-radius: 20px; 
+        font-size: 0.7rem; 
         font-weight: bold;
         white-space: nowrap;
         display: inline-block;
-        margin-left: 5px;
+        margin-left: 8px;
+        box-shadow: 0 3px 10px rgba(102, 126, 234, 0.3);
+        border: 1px solid rgba(255,255,255,0.3);
     }
+    
     .badge-live { 
-        background: linear-gradient(135deg, #FFD700, #FFA500); 
+        background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
         color: #8a6d00; 
-    }
-    .badge-vip {
-        background: linear-gradient(135deg, #8A2BE2, #FFD700);
-        color: white;
+        animation: badgePulse 1.5s infinite;
     }
 
-    /* --- STATS BOX --- */
+    @keyframes badgePulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+    
+    .badge-vip {
+        background: linear-gradient(135deg, #8A2BE2 0%, #FFD700 100%);
+        color: white;
+        border: 1px solid rgba(255, 215, 0, 0.5);
+    }
+
+    /* --- GRADIENT STATS BOX --- */
     .stat-box {
         text-align: center;
-        padding: 15px;
-        background: rgba(255,255,255,0.7);
-        border-radius: 12px;
-        margin: 15px 0;
-    }
-    .stat-num { 
-        font-size: 2.5rem; 
-        font-weight: 900; 
-        color: #784BA0; 
-        line-height: 1;
-        margin: 5px 0;
-    }
-    .stat-label { 
-        font-size: 0.8rem; 
-        color: #666; 
-        font-weight: 700; 
-        letter-spacing: 1px;
+        padding: 20px;
+        background: linear-gradient(135deg, 
+            rgba(255, 255, 255, 0.9) 0%, 
+            rgba(255, 255, 255, 0.7) 100%);
+        border-radius: 20px;
+        margin: 20px 0;
+        border: 2px solid rgba(255, 255, 255, 0.4);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        position: relative;
+        overflow: hidden;
     }
 
-    /* --- SCROLLABLE CONTAINERS --- */
+    .stat-box::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
+    }
+
+    .stat-num { 
+        font-size: 2.8rem; 
+        font-weight: 900; 
+        background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        line-height: 1;
+        margin: 10px 0;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .stat-label { 
+        font-size: 0.85rem; 
+        color: #764ba2; 
+        font-weight: 800; 
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+    }
+
+    /* --- GRADIENT SCROLLABLE CONTAINERS --- */
     .scrollable-container {
         max-height: 400px;
         overflow-y: auto;
-        padding-right: 5px;
+        padding-right: 8px;
+        margin-top: 10px;
     }
     
     .scrollable-container::-webkit-scrollbar {
-        width: 6px;
+        width: 8px;
     }
     
     .scrollable-container::-webkit-scrollbar-track {
-        background: rgba(255,255,255,0.3);
+        background: linear-gradient(180deg, 
+            rgba(255,255,255,0.1) 0%,
+            rgba(255,255,255,0.3) 100%);
         border-radius: 10px;
     }
     
     .scrollable-container::-webkit-scrollbar-thumb {
-        background: rgba(120, 75, 160, 0.5);
+        background: linear-gradient(180deg, #667eea, #764ba2);
         border-radius: 10px;
+        border: 2px solid rgba(255,255,255,0.3);
     }
 
-    /* --- VIP INDICATOR --- */
+    /* --- GRADIENT VIP INDICATOR --- */
     .vip-indicator {
         display: inline-block;
-        background: linear-gradient(135deg, #FFD700, #FFA500);
+        background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
         color: #8a6d00;
-        padding: 2px 8px;
-        border-radius: 10px;
+        padding: 3px 10px;
+        border-radius: 15px;
         font-size: 0.7rem;
         font-weight: bold;
-        margin-left: 5px;
-        animation: pulse 2s infinite;
+        margin-left: 8px;
+        animation: vipPulse 2s infinite;
+        border: 1px solid rgba(255, 215, 0, 0.5);
+        box-shadow: 0 3px 10px rgba(255, 215, 0, 0.3);
     }
 
-    @keyframes pulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.05); }
-        100% { transform: scale(1); }
+    @keyframes vipPulse {
+        0% { transform: scale(1); box-shadow: 0 3px 10px rgba(255, 215, 0, 0.3); }
+        50% { transform: scale(1.08); box-shadow: 0 5px 15px rgba(255, 215, 0, 0.5); }
+        100% { transform: scale(1); box-shadow: 0 3px 10px rgba(255, 215, 0, 0.3); }
+    }
+
+    /* --- GRADIENT SERVED ITEMS --- */
+    .served-item {
+        padding: 12px 15px;
+        border-bottom: 1px solid rgba(255,255,255,0.3);
+        display: flex;
+        align-items: center;
+        transition: all 0.3s ease;
+        background: linear-gradient(135deg, 
+            rgba(255,255,255,0.9) 0%,
+            rgba(255,255,255,0.7) 100%);
+        border-radius: 12px;
+        margin-bottom: 8px;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+    }
+
+    .served-item:hover {
+        transform: translateX(5px);
+        background: linear-gradient(135deg, 
+            rgba(255,255,255,1) 0%,
+            rgba(255,255,255,0.8) 100%);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
     }
 
     /* --- RESPONSIVE COLUMNS --- */
@@ -287,15 +481,70 @@ st.markdown("""
             flex-direction: column;
         }
         .ticket-container {
-            padding: 10px;
+            padding: 12px;
         }
         .t-emoji {
             font-size: 1.8rem;
             margin-right: 10px;
         }
         .glass-panel {
-            padding: 15px;
+            padding: 20px;
         }
+        .hero-title {
+            font-size: 2.2rem;
+        }
+    }
+
+    /* --- GRADIENT DIVIDERS --- */
+    hr {
+        height: 3px;
+        background: linear-gradient(90deg, 
+            transparent 0%, 
+            #667eea 20%, 
+            #764ba2 50%, 
+            #f093fb 80%, 
+            transparent 100%);
+        border: none;
+        margin: 25px 0;
+        border-radius: 2px;
+    }
+
+    /* --- GRADIENT CAPTIONS --- */
+    .st-caption {
+        background: linear-gradient(90deg, #667eea, #764ba2);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 700 !important;
+    }
+
+    /* --- GRADIENT FOOTER --- */
+    .gradient-footer {
+        text-align: center;
+        margin-top: 30px;
+        padding: 15px;
+        background: linear-gradient(135deg, 
+            rgba(255,255,255,0.2) 0%,
+            rgba(255,255,255,0.1) 100%);
+        border-radius: 15px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    /* --- QUICK STATS GRADIENT --- */
+    .quick-stats {
+        background: linear-gradient(135deg, 
+            rgba(255,255,255,0.8) 0%,
+            rgba(255,255,255,0.6) 100%);
+        padding: 15px;
+        border-radius: 15px;
+        margin-top: 15px;
+        border: 1px solid rgba(255,255,255,0.3);
+    }
+
+    .quick-stats strong {
+        background: linear-gradient(90deg, #667eea, #764ba2);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -323,9 +572,11 @@ def enqueue(is_vip=False):
         avatar = random.choice(VIP_AVATARS)
         st.session_state.vip_count += 1
         vip_badge = "VIP"
+        st.toast("👑 VIP Customer Added!", icon="🌟")
     else:
         avatar = random.choice(AVATARS)
         vip_badge = ""
+        st.toast("🎬 Customer Added to Queue", icon="✅")
     
     new_ticket = {
         "id": st.session_state.ticket_id,
@@ -360,13 +611,15 @@ def dequeue():
         
         if person['is_vip']:
             st.session_state.vip_count -= 1
-        
-        # Celebrate every 3rd customer
-        if len(st.session_state.history) % 3 == 0:
+            st.toast(f"👑 VIP #{person['id']} served!", icon="🎉")
             st.balloons()
-            st.toast("🎉 Customer served successfully!", icon="✅")
+        else:
+            # Celebrate every 3rd regular customer
+            if len(st.session_state.history) % 3 == 0:
+                st.toast(f"🎬 #{person['id']} served!", icon="🎬")
+                st.balloons()
     else:
-        st.toast("⚠️ The queue is empty!", icon="📭")
+        st.toast("⚠️ Queue is empty! Add customers first.", icon="📭")
 
 def reset_app():
     """Reset the entire application"""
@@ -374,6 +627,7 @@ def reset_app():
     st.session_state.history = []
     st.session_state.ticket_id = 101
     st.session_state.vip_count = 0
+    st.toast("🔄 System Reset Complete", icon="🔄")
     st.rerun()
 
 # --- 4. LAYOUT STRUCTURE ---
@@ -383,9 +637,9 @@ st.markdown('<div class="main-container">', unsafe_allow_html=True)
 
 # Title Area
 st.markdown("""
-    <div class="glass-panel" style="text-align: center; padding: 15px 20px; margin-top: 10px;">
-        <div class="hero-title">👑 PREMIERE CINEMA</div>
-        <div class="hero-subtitle">VIP Queue Management System</div>
+    <div class="glass-panel" style="text-align: center; padding: 20px; margin-top: 5px;">
+        <div class="hero-title">🌈 PREMIERE CINEMA</div>
+        <div class="hero-subtitle">Gradient Queue Management System</div>
     </div>
 """, unsafe_allow_html=True)
 
@@ -444,11 +698,17 @@ with col1:
     # Quick Stats
     st.markdown("---")
     served_count = len(st.session_state.history)
-    st.markdown(f"**📊 Quick Stats**")
+    st.markdown("""
+        <div class="quick-stats">
+            <strong>📊 Quick Stats</strong>
+        </div>
+    """, unsafe_allow_html=True)
     st.markdown(f"""
-    - **Total Served:** {served_count}
-    - **Next Ticket:** #{st.session_state.ticket_id}
-    - **Queue Time:** {(len(st.session_state.queue) * 2)} mins
+    <div style="padding: 10px;">
+    - **Total Served:** <strong>{served_count}</strong><br>
+    - **Next Ticket:** <strong>#{st.session_state.ticket_id}</strong><br>
+    - **Est. Wait:** <strong>{len(st.session_state.queue) * 2} mins</strong>
+    </div>
     """)
     
     st.markdown('</div>', unsafe_allow_html=True)
@@ -460,10 +720,14 @@ with col2:
     
     if not st.session_state.queue:
         st.markdown("""
-        <div style="text-align:center; padding: 30px; color: #666;">
-            <div style="font-size: 4rem; opacity: 0.5;">💤</div>
-            <h3 style="color:#666; margin: 10px 0;">Queue is Empty</h3>
-            <p style="color:#888;">Add customers to start managing the queue.</p>
+        <div style="text-align:center; padding: 40px; color: #666;">
+            <div style="font-size: 4rem; opacity: 0.5; margin-bottom: 20px;">
+                <div style="background: linear-gradient(135deg, #667eea, #764ba2, #f093fb);
+                           -webkit-background-clip: text;
+                           -webkit-text-fill-color: transparent;">💤</div>
+            </div>
+            <h3 style="color:#764ba2; margin: 10px 0;">Queue is Empty</h3>
+            <p style="color:#888; font-weight: 500;">Add customers to start the magic!</p>
         </div>
         """, unsafe_allow_html=True)
     else:
@@ -494,7 +758,7 @@ with col2:
             <div class="{card_class}">
                 <div class="t-emoji">{ticket['avatar']}</div>
                 <div class="t-details">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 3px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 5px;">
                         <span class="t-id">#{ticket['id']} {ticket['name']} {vip_indicator}</span>
                         {badge_html}
                     </div>
@@ -502,7 +766,7 @@ with col2:
                 </div>
             </div>
             """, unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)  # Close scrollable container
+        st.markdown('</div>', unsafe_allow_html=True)
     
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -513,40 +777,63 @@ with col3:
     
     if not st.session_state.history:
         st.markdown("""
-        <div style="text-align:center; padding: 20px; color: #888;">
-            <div style="font-size: 3rem; opacity: 0.3;">🎬</div>
-            <p>No customers served yet</p>
+        <div style="text-align:center; padding: 30px; color: #888;">
+            <div style="font-size: 3.5rem; opacity: 0.3; margin-bottom: 15px;">
+                <div style="background: linear-gradient(135deg, #667eea, #764ba2);
+                           -webkit-background-clip: text;
+                           -webkit-text-fill-color: transparent;">🎬</div>
+            </div>
+            <p style="font-weight: 600; color: #764ba2;">No customers served yet</p>
+            <p style="font-size: 0.9rem; color: #999;">Serve customers to see history</p>
         </div>
         """, unsafe_allow_html=True)
     else:
         st.markdown('<div class="scrollable-container">', unsafe_allow_html=True)
-        for item in st.session_state.history[:8]:  # Show last 8 served
+        for item in st.session_state.history[:8]:
             vip_icon = "👑 " if item.get('is_vip', False) else ""
+            served_style = "background: linear-gradient(90deg, #FFD700, #FFA500);" if item.get('is_vip', False) else "background: linear-gradient(90deg, #667eea, #764ba2);"
             
             st.markdown(f"""
-            <div style="padding: 10px 12px; border-bottom: 1px solid #eee; display:flex; align-items:center; transition: background 0.2s;">
-                <span style="font-size:1.4rem; margin-right:10px; opacity:{'0.9' if item.get('is_vip', False) else '0.6'};">{item['avatar']}</span>
+            <div class="served-item">
+                <span style="font-size:1.5rem; margin-right:12px; 
+                    {'filter: drop-shadow(0 2px 3px rgba(255, 215, 0, 0.5));' if item.get('is_vip', False) else ''}">
+                    {item['avatar']}
+                </span>
                 <div style="flex-grow: 1;">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <div style="font-weight:bold; color:#444; font-size: 0.9rem;">{vip_icon}#{item['id']} {item['name']}</div>
-                        <div style="font-size:0.7rem; color:#999; background:#f5f5f5; padding:2px 6px; border-radius:8px;">Out</div>
+                        <div style="font-weight:bold; color:#444; font-size: 0.9rem;">
+                            {vip_icon}#{item['id']} {item['name']}
+                        </div>
+                        <div style="font-size:0.7rem; color:white; padding:3px 8px; border-radius:10px; {served_style}">
+                            Served
+                        </div>
                     </div>
-                    <div style="font-size:0.7rem; color:#888; margin-top: 2px;">{item['served']}</div>
+                    <div style="font-size:0.75rem; color:#888; margin-top: 3px;">
+                        {item['served']}
+                    </div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
         
-        # Show more button if there are more served customers
         if len(st.session_state.history) > 8:
             st.caption(f"Showing last 8 of {len(st.session_state.history)} served customers")
     
     st.markdown('</div>', unsafe_allow_html=True)
 
-# Footer
+# Gradient Footer
 st.markdown("""
-<div style="text-align: center; margin-top: 20px; padding: 10px; color: rgba(255,255,255,0.7); font-size: 0.8rem;">
-    🎬 Cinema Queue System v2.0 • VIP Priority Enabled • Auto-refresh on action
+<div class="gradient-footer">
+    <div style="font-size: 1.2rem; font-weight: 800; margin-bottom: 5px;">
+        <span style="background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
+                     -webkit-background-clip: text;
+                     -webkit-text-fill-color: transparent;">
+            🎬 Cinema Queue System v3.0
+        </span>
+    </div>
+    <div style="font-size: 0.85rem; color: rgba(255,255,255,0.8);">
+        VIP Priority • Gradient UI • Auto-refresh • Live Updates
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
