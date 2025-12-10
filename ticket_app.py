@@ -1,552 +1,267 @@
 import streamlit as st
 import random
-import time
-from datetime import datetime
 import os
-import json
-from pathlib import Path
-
-# Try to import Google GenAI, handle if not installed or key missing
-try:
-    from google import genai
-    from google.genai import types
-    HAS_GENAI_LIB = True
-except ImportError:
-    HAS_GENAI_LIB = False
+from datetime import datetime
 
 # --- 1. PAGE SETUP ---
 st.set_page_config(
-    page_title="Neon Cinema Live", 
+    page_title="Neon Cinema Queue", 
     page_icon="🍿", 
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. ENHANCED THEMES WITH COLOR SCHEMES ---
+# --- 2. THEMES & STATE ---
 THEMES = {
-    "Neon City": {
-        "gradient": "linear-gradient(-45deg, #FF3CAC, #784BA0, #2B86C5, #23d5ab)",
-        "primary": "#FF3CAC",
-        "secondary": "#2B86C5",
-        "accent": "#23d5ab",
-        "text": "#ffffff",
-        "card_bg": "rgba(255, 255, 255, 0.85)"
+    "neon": { 
+        "name": "Neon City", 
+        "bg": "linear-gradient(-45deg, #FF3CAC, #784BA0, #2B86C5, #23d5ab)",
+        "accent": "#00f2fe",
+        "button_color": "#FF3CAC",
+        "button_hover": "#FF0066"
     },
-    "Sunset Strip": {
-        "gradient": "linear-gradient(-45deg, #FF512F, #DD2476, #F09819, #FF512F)",
-        "primary": "#FF512F",
-        "secondary": "#DD2476",
-        "accent": "#F09819",
-        "text": "#ffffff",
-        "card_bg": "rgba(255, 255, 255, 0.9)"
+    "sunset": { 
+        "name": "Sunset Strip", 
+        "bg": "linear-gradient(-45deg, #FF512F, #DD2476, #F09819, #FF512F)",
+        "accent": "#FF512F",
+        "button_color": "#FF512F",
+        "button_hover": "#DD2476"
     },
-    "Toxic Jungle": {
-        "gradient": "linear-gradient(-45deg, #11998e, #38ef7d, #00b09b, #96c93d)",
-        "primary": "#38ef7d",
-        "secondary": "#11998e",
-        "accent": "#96c93d",
-        "text": "#ffffff",
-        "card_bg": "rgba(255, 255, 255, 0.85)"
+    "ocean": { 
+        "name": "Cyber Ocean", 
+        "bg": "linear-gradient(-45deg, #00c6ff, #0072ff, #1cb5e0, #000046)",
+        "accent": "#00c6ff",
+        "button_color": "#0072ff",
+        "button_hover": "#1cb5e0"
     },
-    "Midnight Galaxy": {
-        "gradient": "linear-gradient(-45deg, #0f0c29, #302b63, #24243e, #000000)",
-        "primary": "#8A2BE2",
-        "secondary": "#4B0082",
-        "accent": "#00CED1",
-        "text": "#ffffff",
-        "card_bg": "rgba(255, 255, 255, 0.12)"
+    "forest": { 
+        "name": "Toxic Jungle", 
+        "bg": "linear-gradient(-45deg, #11998e, #38ef7d, #00b09b, #96c93d)",
+        "accent": "#38ef7d",
+        "button_color": "#11998e",
+        "button_hover": "#38ef7d"
     },
-    "Candy Crush": {
-        "gradient": "linear-gradient(-45deg, #FF9A9E, #FAD0C4, #FAD0C4, #FFD1FF)",
-        "primary": "#FF9A9E",
-        "secondary": "#FAD0C4",
-        "accent": "#FFD1FF",
-        "text": "#333333",
-        "card_bg": "rgba(255, 255, 255, 0.95)"
-    },
-    "Cyberpunk": {
-        "gradient": "linear-gradient(-45deg, #ff0080, #ff8c00, #40e0d0, #00ff00)",
-        "primary": "#ff0080",
-        "secondary": "#40e0d0",
-        "accent": "#00ff00",
-        "text": "#ffffff",
-        "card_bg": "rgba(0, 0, 0, 0.7)"
-    },
-    "Ocean Depth": {
-        "gradient": "linear-gradient(-45deg, #1a2980, #26d0ce, #1a2980, #26d0ce)",
-        "primary": "#1a2980",
-        "secondary": "#26d0ce",
-        "accent": "#00ffff",
-        "text": "#ffffff",
-        "card_bg": "rgba(255, 255, 255, 0.85)"
-    },
-    "Fire Blaze": {
-        "gradient": "linear-gradient(-45deg, #ff0000, #ff9900, #ffff00, #ff0000)",
-        "primary": "#ff0000",
-        "secondary": "#ff9900",
-        "accent": "#ffff00",
-        "text": "#ffffff",
-        "card_bg": "rgba(255, 255, 255, 0.9)"
-    }
 }
 
-if 'queue' not in st.session_state: st.session_state.queue = []
-if 'history' not in st.session_state: st.session_state.history = []
-if 'ticket_id' not in st.session_state: st.session_state.ticket_id = 101
-if 'vip_mode' not in st.session_state: st.session_state.vip_mode = False
-if 'current_theme' not in st.session_state: st.session_state.current_theme = "Neon City"
-if 'user_api_key' not in st.session_state: st.session_state.user_api_key = None
+# Initialize Session State with validation
+if 'current_theme' not in st.session_state:
+    st.session_state.current_theme = "neon"
+else:
+    # Validate current_theme is a valid key
+    if st.session_state.current_theme not in THEMES:
+        st.session_state.current_theme = "neon"  # Reset to default
 
-# Get current theme colors
-current_theme_data = THEMES[st.session_state.current_theme]
+if 'queue' not in st.session_state: 
+    st.session_state.queue = []
+if 'history' not in st.session_state: 
+    st.session_state.history = []
+if 'ticket_id' not in st.session_state: 
+    st.session_state.ticket_id = 101
+if 'vip_mode' not in st.session_state: 
+    st.session_state.vip_mode = False
 
-# --- 3. DYNAMIC CSS BASED ON THEME ---
+# --- 3. CSS INJECTION ---
+# Get current theme data with fallback
+current_theme_data = THEMES.get(
+    st.session_state.current_theme, 
+    THEMES["neon"]  # Fallback to neon theme
+)
+
 st.markdown(f"""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&family=Poppins:wght@900&family=Orbitron:wght@400;700&display=swap');
-    
-    /* ANIMATED BACKGROUND */
+    @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&family=Poppins:wght@900&display=swap');
+
+    /* DYNAMIC THEME BACKGROUND */
     .stApp {{
-        background: {current_theme_data['gradient']};
+        background: {current_theme_data['bg']};
         background-size: 400% 400%;
-        animation: gradient 15s ease infinite;
+        animation: gradientBG 15s ease infinite;
         font-family: 'Nunito', sans-serif;
-        min-height: 100vh;
-        color: {current_theme_data['text']};
     }}
     
-    @keyframes gradient {{
+    @keyframes gradientBG {{
         0% {{ background-position: 0% 50%; }}
         50% {{ background-position: 100% 50%; }}
         100% {{ background-position: 0% 50%; }}
     }}
 
-    /* HIDE STREAMLIT ELEMENTS */
-    header {{visibility: hidden;}}
-    footer {{visibility: hidden;}}
-    .stDeployButton {{display:none;}}
-
-    /* GLASSMORPHISM PANELS */
+    /* GLASS PANELS */
     .glass-panel {{
-        background: {current_theme_data['card_bg']};
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border: 2px solid rgba(255, 255, 255, 0.3);
-        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.2);
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255,255,255,0.6);
         border-radius: 20px;
-        padding: 24px;
+        padding: 20px;
+        box-shadow: 0 8px 32px 0 rgba(0,0,0,0.1);
         margin-bottom: 20px;
-        border-top: 5px solid {current_theme_data['primary']};
     }}
 
-    /* SIDEBAR GLASS */
-    .sidebar .sidebar-content {{
-        background: rgba(255, 255, 255, 0.9);
-        backdrop-filter: blur(15px);
-        -webkit-backdrop-filter: blur(15px);
-        border-right: 3px solid {current_theme_data['secondary']};
-    }}
-
-    /* TYPOGRAPHY */
+    /* TITLES */
     .hero-title {{
-        font-family: 'Orbitron', sans-serif;
-        font-size: 3.8rem;
-        font-weight: 900;
-        background: linear-gradient(45deg, {current_theme_data['primary']}, {current_theme_data['accent']});
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        text-shadow: 0 4px 15px rgba(0,0,0,0.2);
-        text-align: center;
+        font-family: 'Poppins', sans-serif;
+        font-size: 3rem;
+        color: white;
+        text-shadow: 0 4px 10px rgba(0,0,0,0.3);
         text-transform: uppercase;
-        margin-bottom: 5px;
-        letter-spacing: 2px;
+        text-align: center;
+        margin-bottom: 0px;
     }}
     
-    .hero-subtitle {{
-        text-align: center;
-        color: {current_theme_data['text']};
-        font-weight: 700;
-        font-size: 1.3rem;
-        margin-bottom: 30px;
-        opacity: 0.9;
-        text-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    }}
-
-    /* THEME BADGE */
-    .theme-badge {{
-        display: inline-block;
-        padding: 4px 12px;
-        background: {current_theme_data['primary']};
-        color: white;
-        border-radius: 20px;
-        font-size: 0.8rem;
-        font-weight: bold;
-        margin-left: 10px;
-        vertical-align: middle;
-    }}
-
-    /* BUTTONS */
-    .stButton > button {{
+    /* CUSTOM COLORED BUTTONS */
+    div.stButton > button {{
         width: 100%;
-        border-radius: 15px;
-        height: 55px;
+        border-radius: 12px;
+        height: 50px;
         font-weight: 800;
         border: none;
         text-transform: uppercase;
-        letter-spacing: 1px;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         color: white;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: 0 5px 20px rgba(0,0,0,0.2);
-        margin-bottom: 10px;
-        font-family: 'Poppins', sans-serif;
-        position: relative;
-        overflow: hidden;
+        letter-spacing: 1px;
     }}
     
-    .stButton > button::after {{
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-        transition: 0.5s;
+    div.stButton > button:hover {{
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+    }}
+
+    /* THEME BUTTONS */
+    .theme-button {{
+        background: linear-gradient(135deg, {current_theme_data['button_color']}, {current_theme_data['accent']}) !important;
     }}
     
-    .stButton > button:hover::after {{
-        left: 100%;
+    .theme-button:hover {{
+        background: linear-gradient(135deg, {current_theme_data['button_hover']}, {current_theme_data['button_color']}) !important;
     }}
 
-    /* Primary (Serve) Button */
-    .serve-button .stButton > button {{
-        background: linear-gradient(135deg, {current_theme_data['primary']} 0%, {current_theme_data['secondary']} 100%);
-        border: 2px solid {current_theme_data['accent']};
+    /* ACTION BUTTONS */
+    .action-button {{
+        background: linear-gradient(135deg, #4A00E0, #8E2DE2) !important;
+    }}
+    
+    .action-button:hover {{
+        background: linear-gradient(135deg, #8E2DE2, #4A00E0) !important;
     }}
 
-    /* Secondary (Add) Button */
-    .add-button .stButton > button {{
-        background: linear-gradient(135deg, {current_theme_data['secondary']} 0%, {current_theme_data['accent']} 100%);
+    /* VIP BUTTON */
+    .vip-button {{
+        background: linear-gradient(135deg, #FFD700, #FFA500) !important;
+        color: #8B4513 !important;
+    }}
+    
+    .vip-button:hover {{
+        background: linear-gradient(135deg, #FFA500, #FFD700) !important;
     }}
 
-    /* Reset Button */
-    .reset-button .stButton > button {{
-        background: linear-gradient(135deg, #FF416C 0%, #FF4B2B 100%);
-        border: 2px solid #FFD700;
+    /* PRIMARY BUTTON */
+    .primary-button {{
+        background: linear-gradient(135deg, #00b09b, #96c93d) !important;
+        font-size: 1.1rem !important;
+        height: 55px !important;
+    }}
+    
+    .primary-button:hover {{
+        background: linear-gradient(135deg, #96c93d, #00b09b) !important;
     }}
 
-    /* VIP Button */
-    .vip-toggle .stButton > button {{
-        background: {'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)' if st.session_state.vip_mode else 'linear-gradient(135deg, #666 0%, #333 100%)'};
-        border: {'2px solid #FFD700' if st.session_state.vip_mode else 'none'};
-        box-shadow: {'0 0 20px #FFD700' if st.session_state.vip_mode else 'none'};
+    /* RESET BUTTON */
+    .reset-button {{
+        background: linear-gradient(135deg, #FF416C, #FF4B2B) !important;
+        margin-top: 10px;
+    }}
+    
+    .reset-button:hover {{
+        background: linear-gradient(135deg, #FF4B2B, #FF416C) !important;
     }}
 
-    .stButton > button:hover {{
-        transform: translateY(-5px) scale(1.02);
-        filter: brightness(1.1);
-        box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-    }}
-    .stButton > button:active {{
-        transform: translateY(2px);
-    }}
-
-    /* QUEUE CARDS */
+    /* TICKET CARDS */
     .ticket-card {{
         background: white;
-        border-radius: 16px;
-        padding: 18px;
-        margin-bottom: 15px;
+        padding: 15px;
+        border-radius: 15px;
+        margin-bottom: 10px;
         display: flex;
         align-items: center;
-        box-shadow: 0 6px 15px rgba(0,0,0,0.1);
-        border-left: 8px solid #e0e0e0;
-        transition: all 0.3s ease;
-        animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-        position: relative;
-        overflow: hidden;
+        border-left: 8px solid #ddd;
+        animation: slideIn 0.5s ease;
     }}
     
-    .ticket-card::before {{
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 4px;
-        background: linear-gradient(90deg, {current_theme_data['primary']}, {current_theme_data['secondary']});
-    }}
-
-    @keyframes popIn {{
-        from {{ opacity: 0; transform: scale(0.9) translateY(20px); }}
-        to {{ opacity: 1; transform: scale(1) translateY(0); }}
+    @keyframes slideIn {{
+        from {{ opacity: 0; transform: translateY(20px); }}
+        to {{ opacity: 1; transform: translateY(0); }}
     }}
 
     .ticket-active {{
-        border-left: 8px solid {current_theme_data['primary']};
-        background: linear-gradient(135deg, #FFFDE4 0%, #FFFFFF 100%);
+        border-left: 8px solid {current_theme_data['accent']};
+        background: #fff;
+        box-shadow: 0 0 20px {current_theme_data['accent']}40;
         transform: scale(1.02);
-        box-shadow: 0 15px 30px rgba(0,0,0,0.15);
-        border: 2px solid {current_theme_data['accent']};
-        animation: pulse 2s infinite;
     }}
-
-    @keyframes pulse {{
-        0% {{ box-shadow: 0 0 0 0 rgba({int(current_theme_data['primary'][1:3], 16)}, {int(current_theme_data['primary'][3:5], 16)}, {int(current_theme_data['primary'][5:7], 16)}, 0.4); }}
-        70% {{ box-shadow: 0 0 0 10px rgba({int(current_theme_data['primary'][1:3], 16)}, {int(current_theme_data['primary'][3:5], 16)}, {int(current_theme_data['primary'][5:7], 16)}, 0); }}
-        100% {{ box-shadow: 0 0 0 0 rgba({int(current_theme_data['primary'][1:3], 16)}, {int(current_theme_data['primary'][3:5], 16)}, {int(current_theme_data['primary'][5:7], 16)}, 0); }}
-    }}
-
+    
     .ticket-vip {{
-        border-left: 8px solid #FFD700;
-        background: linear-gradient(135deg, #fffcf0 0%, #fff8dc 100%);
         border: 2px solid #FFD700;
+        border-left: 8px solid #FFD700;
+        background: #fffdf0;
     }}
 
-    .t-avatar {{ 
-        font-size: 3rem; 
-        margin-right: 20px; 
-        filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.2));
-    }}
+    .avatar {{ font-size: 2.2rem; margin-right: 15px; }}
+    .ticket-info {{ flex-grow: 1; }}
+    .ticket-id {{ font-weight: 900; font-size: 1.2rem; color: #333; }}
+    .ticket-meta {{ font-size: 0.8rem; color: #777; }}
     
-    .t-info {{ flex-grow: 1; }}
-    .t-name {{ 
-        font-weight: 900; 
-        color: #333; 
-        font-size: 1.3rem;
-        font-family: 'Poppins', sans-serif;
-    }}
-    
-    .t-meta {{ 
-        font-size: 0.9rem; 
-        color: #666; 
-        display: flex; 
-        gap: 15px;
-        margin-top: 5px;
-    }}
-    
-    .badge {{ 
-        background: {current_theme_data['secondary']}; 
-        color: white;
-        padding: 4px 12px; 
-        border-radius: 20px; 
-        font-size: 0.75rem; 
-        font-weight: 800; 
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }}
-    
-    .vip-badge {{
-        background: linear-gradient(135deg, #FFD700, #FFA500);
-        color: #8B4513;
-        box-shadow: 0 2px 5px rgba(255, 165, 0, 0.3);
-    }}
-
     /* HISTORY */
     .history-item {{
-        padding: 15px;
-        border-bottom: 2px solid rgba(0,0,0,0.05);
+        background: rgba(255,255,255,0.5);
+        border-radius: 10px;
+        padding: 10px;
+        margin-bottom: 8px;
         font-size: 0.9rem;
-        background: rgba(255,255,255,0.7);
-        border-radius: 12px;
-        margin-bottom: 10px;
-        border-left: 4px solid {current_theme_data['secondary']};
     }}
-    
-    .history-vip {{
-        border-left: 4px solid #FFD700;
-        background: linear-gradient(135deg, rgba(255, 215, 0, 0.1) 0%, rgba(255, 255, 255, 0.8) 100%);
-    }}
-    
     .ai-msg {{
         font-style: italic;
         color: #555;
-        background: linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(240,240,240,0.9) 100%);
-        padding: 10px;
-        border-radius: 10px;
-        margin-top: 8px;
-        border-left: 4px solid {current_theme_data['accent']};
-        font-size: 0.9rem;
-    }}
-
-    /* STATS CARDS */
-    .stat-card {{
-        background: linear-gradient(135deg, {current_theme_data['card_bg']} 0%, rgba(255,255,255,0.9) 100%);
-        border-radius: 15px;
-        padding: 20px;
-        text-align: center;
-        box-shadow: 0 6px 15px rgba(0,0,0,0.1);
-        margin: 8px;
-        border: 2px solid {current_theme_data['primary']};
-        transition: transform 0.3s ease;
-    }}
-    
-    .stat-card:hover {{
-        transform: translateY(-5px);
-    }}
-    
-    .stat-number {{
-        font-size: 2.2rem;
-        font-weight: 900;
-        background: linear-gradient(45deg, {current_theme_data['primary']}, {current_theme_data['secondary']});
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        font-family: 'Poppins', sans-serif;
-    }}
-    
-    .stat-label {{
-        font-size: 0.8rem;
-        color: #666;
-        text-transform: uppercase;
-        letter-spacing: 1.5px;
-        font-weight: 700;
+        background: rgba(255,255,255,0.6);
+        padding: 5px 10px;
+        border-radius: 8px;
         margin-top: 5px;
+        border-left: 3px solid {current_theme_data['accent']};
     }}
 
-    /* PROGRESS BAR */
-    .progress-container {{
-        width: 100%;
-        background: rgba(255,255,255,0.2);
-        border-radius: 10px;
-        margin: 15px 0;
-        overflow: hidden;
-        border: 1px solid rgba(255,255,255,0.3);
-    }}
-    
-    .progress-bar {{
-        height: 10px;
-        border-radius: 10px;
-        background: linear-gradient(90deg, {current_theme_data['primary']} 0%, {current_theme_data['accent']} 100%);
-        transition: width 0.5s ease;
-        box-shadow: 0 0 10px {current_theme_data['primary']};
-    }}
-
-    /* THEME PREVIEW */
-    .theme-preview {{
-        height: 60px;
-        border-radius: 10px;
-        margin: 5px 0;
-        cursor: pointer;
-        transition: transform 0.3s ease;
-        border: 2px solid transparent;
-        overflow: hidden;
-        position: relative;
-    }}
-    
-    .theme-preview:hover {{
-        transform: scale(1.05);
-    }}
-    
-    .theme-preview.active {{
-        border: 3px solid white;
-        box-shadow: 0 0 15px {current_theme_data['accent']};
-    }}
-    
-    .theme-label {{
-        position: absolute;
-        bottom: 5px;
-        left: 10px;
-        color: white;
-        font-weight: bold;
-        text-shadow: 1px 1px 3px rgba(0,0,0,0.7);
-        font-size: 0.8rem;
-    }}
-
-    /* EMPTY STATE */
-    .empty-state {{
-        text-align: center;
-        padding: 60px 20px;
-        background: rgba(255,255,255,0.1);
-        border-radius: 20px;
-        border: 3px dashed {current_theme_data['primary']};
-    }}
-    
-    .empty-icon {{
-        font-size: 5rem;
-        opacity: 0.7;
-        margin-bottom: 20px;
-        filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.2));
-    }}
-
-    /* FOOTER */
-    .footer {{
-        text-align: center;
-        margin-top: 40px;
-        padding: 25px;
-        color: rgba(255,255,255,0.8);
-        font-size: 0.9rem;
-        border-top: 2px solid rgba(255,255,255,0.2);
-        background: rgba(0,0,0,0.1);
-        border-radius: 20px;
-        backdrop-filter: blur(10px);
-    }}
-    
-    .glow-text {{
-        text-shadow: 0 0 10px {current_theme_data['accent']};
-    }}
+    /* HIDE STREAMLIT CHROME */
+    header {{visibility: hidden;}}
+    footer {{visibility: hidden;}}
+    .stDeployButton {{display:none;}}
 </style>
 """, unsafe_allow_html=True)
 
-# --- 4. HELPERS & LOGIC ---
+# --- 4. LOGIC FUNCTIONS ---
+NAMES = ["Kai", "Luna", "Milo", "Nova", "Leo", "Mia", "Zane", "Cleo", "Jax", "Ivy", "Finn"]
+AVATARS = ["🐼", "🦊", "🦄", "🦁", "🐯", "🐸", "🐙", "🐵", "🐨", "🤖", "👽"]
+SNACKS = ["Popcorn 🍿", "Nachos 🌮", "Soda 🥤", "Candy 🍫", "Hotdog 🌭"]
 
-def get_api_key():
-    """Get API key from multiple sources in priority order"""
-    # 1. User input in session state
-    if st.session_state.user_api_key:
-        return st.session_state.user_api_key
+# List of predefined cinema messages
+CINEMA_MESSAGES = [
+    "Enjoy the movie! 🎬",
+    "Great choice of snacks! 🍿",
+    "Have an awesome time! 😊",
+    "The show is about to begin! 🎭",
+    "Perfect seats await! 🪑",
+    "Movie magic starts now! ✨",
+    "Get ready for fun! 🎉",
+    "Your cinematic journey begins! 🚀",
+    "Lights, camera, action! 📽️",
+    "Enjoy the feature! 🍿",
+    "Popcorn refills on us! 🆓",
+    "Comfort mode: activated! 😎"
+]
+
+def enqueue():
+    name = random.choice(NAMES)
+    avatar = random.choice(AVATARS)
+    snack = random.choice(SNACKS)
+    is_vip = st.session_state.vip_mode
     
-    # 2. Streamlit secrets
-    if "API_KEY" in st.secrets:
-        return st.secrets["API_KEY"]
-    
-    # 3. Environment variable
-    if "GOOGLE_API_KEY" in os.environ:
-        return os.environ["GOOGLE_API_KEY"]
-    
-    return None
-
-def get_random_data():
-    names = ["Kai", "Luna", "Milo", "Nova", "Leo", "Mia", "Zane", "Cleo", "Jax", "Ivy", "Finn"]
-    avatars = ["🐼", "🦊", "🦄", "🦁", "🐯", "🐸", "🐙", "🐵", "🐨", "🐷", "🐻"]
-    snacks = ["🍿 Popcorn", "🥤 Soda", "🌭 Hotdog", "🥨 Pretzel", "🍫 Candy", "🌮 Nachos"]
-    return random.choice(names), random.choice(avatars), random.choice(snacks)
-
-def get_ai_message(name, snack, theme):
-    """Generates a message using Gemini, or a fallback if no key is present."""
-    
-    api_key = get_api_key()
-        
-    # If no key or no lib, return fallback
-    if not api_key or not HAS_GENAI_LIB:
-        fallbacks = [
-            f"Enjoy your {snack}, {name}!",
-            f"Welcome to the movies, {name}!",
-            f"Grab a seat, {name}!",
-            "Showtime! Enjoy the snacks.",
-            f"{name}, your {snack} awaits!",
-            f"Roll the film for {name}!",
-            f"Dim the lights, {name} is here!"
-        ]
-        return random.choice(fallbacks)
-
-    # Call Gemini
-    try:
-        client = genai.Client(api_key=api_key)
-        prompt = f"Generate a witty, very short (max 7 words) cinema welcome for {name}. Context: They ordered {snack}. Theme: {theme}. Be creative and fun."
-        
-        response = client.models.generate_content(
-            model='gemini-2.0-flash',
-            contents=prompt
-        )
-        return response.text.strip()
-    except Exception as e:
-        st.error(f"AI Error: {str(e)}")
-        return f"Welcome {name}! Enjoy your movie!"
-
-def enqueue_custom(name, avatar, snack, is_vip):
-    """Add a custom guest to the queue"""
     new_ticket = {
         "id": st.session_state.ticket_id,
         "name": name,
@@ -558,294 +273,187 @@ def enqueue_custom(name, avatar, snack, is_vip):
     
     st.session_state.ticket_id += 1
     
-    # VIP Logic: Insert at index 1 (behind current server) or 0 if empty
+    # VIP Logic: Insert behind the person currently being served (index 1)
     if is_vip and len(st.session_state.queue) > 0:
         st.session_state.queue.insert(1, new_ticket)
     else:
         st.session_state.queue.append(new_ticket)
     
-    return new_ticket
-
-def enqueue_random():
-    """Add a random guest to the queue"""
-    name, avatar, snack = get_random_data()
-    return enqueue_custom(name, avatar, snack, st.session_state.vip_mode)
+    # Reset toggle
+    st.session_state.vip_mode = False
 
 def dequeue():
     if not st.session_state.queue:
-        st.toast("⚠️ Queue is empty!")
-        return None
+        return
 
     # Pop the first person
     person = st.session_state.queue.pop(0)
     
-    # Generate Message
-    msg = get_ai_message(person['name'], person['snack'], st.session_state.current_theme)
-    person['out_time'] = datetime.now().strftime("%I:%M %p")
-    person['message'] = msg
-    
-    # Add to history
-    st.session_state.history.insert(0, person)
-    
-    # Occasional fun
-    if len(st.session_state.history) % 5 == 0:
-        st.balloons()
-    elif len(st.session_state.history) % 7 == 0:
-        st.snow()
-    
-    return person
+    # Use a random predefined message
+    cinema_message = random.choice(CINEMA_MESSAGES)
 
-def reset():
+    # Add to history
+    person['served_time'] = datetime.now().strftime("%I:%M %p")
+    person['cinema_msg'] = cinema_message
+    st.session_state.history.insert(0, person)
+
+def reset_queue():
+    """Reset the entire queue and history"""
     st.session_state.queue = []
     st.session_state.history = []
+    # Keep current theme and VIP mode, reset other states
     st.session_state.ticket_id = 101
-    st.session_state.vip_mode = False
+    st.success("Queue and history have been reset!")
 
-def save_history():
-    """Save history to a JSON file"""
-    try:
-        history_data = {
-            "history": st.session_state.history,
-            "total_served": len(st.session_state.history),
-            "timestamp": datetime.now().isoformat(),
-            "theme": st.session_state.current_theme
-        }
-        
-        # Create data directory if it doesn't exist
-        Path("data").mkdir(exist_ok=True)
-        
-        # Save to file
-        with open("data/cinema_history.json", "w") as f:
-            json.dump(history_data, f, indent=2)
-        
-        return True
-    except Exception as e:
-        st.error(f"Failed to save history: {e}")
-        return False
+# --- 5. UI LAYOUT ---
 
-def load_history():
-    """Load history from JSON file"""
-    try:
-        if Path("data/cinema_history.json").exists():
-            with open("data/cinema_history.json", "r") as f:
-                data = json.load(f)
-            return data
-    except Exception as e:
-        st.error(f"Failed to load history: {e}")
-    return None
+st.markdown('<div class="hero-title">🍿 POPCORN CINEMA</div>', unsafe_allow_html=True)
+st.markdown(f'<div style="text-align:center; color:white; margin-bottom:30px; opacity:0.8;">{current_theme_data["name"]} Mode</div>', unsafe_allow_html=True)
 
-def get_statistics():
-    """Calculate various statistics"""
-    total_served = len(st.session_state.history)
-    vip_served = len([h for h in st.session_state.history if h.get('is_vip', False)])
-    regular_served = total_served - vip_served
-    
-    # Most popular snack
-    snack_counts = {}
-    for person in st.session_state.history:
-        snack = person.get('snack', 'Unknown')
-        snack_counts[snack] = snack_counts.get(snack, 0) + 1
-    
-    most_popular = max(snack_counts.items(), key=lambda x: x[1]) if snack_counts else ("None", 0)
-    
-    # Peak time (simplified)
-    time_counts = {}
-    for person in st.session_state.history:
-        time_str = person.get('joined', '')
-        hour = time_str.split(':')[0] if ':' in time_str else 'Unknown'
-        time_counts[hour] = time_counts.get(hour, 0) + 1
-    
-    peak_hour = max(time_counts.items(), key=lambda x: x[1]) if time_counts else ("None", 0)
-    
-    return {
-        "total_served": total_served,
-        "vip_served": vip_served,
-        "regular_served": regular_served,
-        "most_popular_snack": most_popular[0],
-        "snack_count": most_popular[1],
-        "peak_hour": peak_hour[0],
-        "current_queue": len(st.session_state.queue),
-        "avg_wait_time": max(0, len(st.session_state.queue) - 1) * 2
-    }
+col_ctrl, col_queue, col_hist = st.columns([1, 1.5, 1])
 
-# --- 5. SIDEBAR ---
-with st.sidebar:
-    st.markdown("## ⚙️ Configuration")
-    
-    # API Key Input
-    st.markdown("### 🔑 API Settings")
-    api_key = get_api_key()
-    
-    if not api_key:
-        st.warning("AI features disabled - no API key found")
-        user_key = st.text_input("Enter Google API Key:", type="password", 
-                                help="Get your API key from https://makersuite.google.com/app/apikey")
-        
-        if user_key:
-            st.session_state.user_api_key = user_key
-            st.success("API key saved! Refresh to enable AI features.")
-            st.rerun()
-    else:
-        st.success("✅ AI features enabled")
-        if st.button("Clear API Key"):
-            st.session_state.user_api_key = None
-            st.rerun()
-    
-    st.markdown("---")
-    
-    # Theme Preview Section
-    st.markdown("### 🎨 Theme Gallery")
-    
-    # Create theme preview grid
-    cols = st.columns(2)
-    for idx, (theme_name, theme_data) in enumerate(THEMES.items()):
-        with cols[idx % 2]:
-            is_active = theme_name == st.session_state.current_theme
-            active_class = "active" if is_active else ""
-            
-            st.markdown(f"""
-            <div class="theme-preview {active_class}" onclick="document.querySelector('input[value=\\'{theme_name}\\']').click();">
-                <div style="width:100%; height:100%; background: {theme_data['gradient']};"></div>
-                <div class="theme-label">{theme_name}</div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            if st.button(f"", key=f"theme_{idx}", help=f"Switch to {theme_name}", 
-                        use_container_width=True, disabled=is_active):
-                st.session_state.current_theme = theme_name
-                st.rerun()
-    
-    st.markdown("---")
-    
-    # Custom Guest Addition
-    st.markdown("### 🎭 Add Custom Guest")
-    
-    with st.expander("Create Custom Ticket", expanded=False):
-        col1, col2 = st.columns(2)
-        with col1:
-            custom_name = st.text_input("Guest Name", "Guest")
-        with col2:
-            custom_avatar = st.selectbox("Avatar", 
-                ["🐼", "🦊", "🦄", "🦁", "🐯", "🐸", "🐙", "🐵", "🐨", "🐷", "🐻", "👤", "🎭"])
-        
-        custom_snack = st.selectbox("Snack Order", 
-            ["🍿 Popcorn", "🥤 Soda", "🌭 Hotdog", "🥨 Pretzel", "🍫 Candy", "🌮 Nachos", "🍿🍫 Combo"])
-        
-        custom_vip = st.checkbox("VIP Guest", value=False)
-        
-        if st.button("✨ Add Custom Guest", use_container_width=True):
-            enqueue_custom(custom_name, custom_avatar, custom_snack, custom_vip)
-            st.success(f"Added {custom_name} to the queue!")
-            st.rerun()
-    
-    st.markdown("---")
-    
-    # History Management
-    st.markdown("### 📊 Data Management")
-    
-    if st.button("💾 Save History", use_container_width=True):
-        if save_history():
-            st.success("History saved successfully!")
-    
-    if st.button("📈 View Statistics", use_container_width=True):
-        stats = get_statistics()
-        st.info(f"""
-        **Today's Stats:**
-        - Total Served: {stats['total_served']}
-        - VIP Guests: {stats['vip_served']}
-        - Most Popular: {stats['most_popular_snack']}
-        - Current Queue: {stats['current_queue']}
-        """)
-
-# --- 6. MAIN LAYOUT ---
-
-st.markdown(f'<div class="hero-title">🎬 NEON CINEMA LIVE</div>', unsafe_allow_html=True)
-st.markdown(f'''
-    <div class="hero-subtitle">
-        Real-time Queue Management • <span class="theme-badge">{st.session_state.current_theme}</span> Theme Active
-    </div>
-''', unsafe_allow_html=True)
-
-col1, col2, col3 = st.columns([1, 1.2, 1], gap="medium")
-
-# --- LEFT: CONTROLS & STATS ---
-with col1:
+# --- LEFT: CONTROLS ---
+with col_ctrl:
     st.markdown('<div class="glass-panel">', unsafe_allow_html=True)
+    st.markdown("### 🎨 Vibe Check")
     
-    # VIP Toggle
-    st.markdown('<div class="vip-toggle">', unsafe_allow_html=True)
-    vip_label = "🌟 VIP MODE ACTIVE" if st.session_state.vip_mode else "⚪ VIP Mode"
-    if st.button(vip_label, use_container_width=True):
+    # Theme Buttons - COLORED
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("🌃 Neon City", key="theme_neon", help="Switch to Neon City theme"):
+            st.session_state.current_theme = "neon"
+            st.rerun()
+        if st.button("🌊 Cyber Ocean", key="theme_ocean", help="Switch to Cyber Ocean theme"):
+            st.session_state.current_theme = "ocean"
+            st.rerun()
+    with c2:
+        if st.button("🌅 Sunset Strip", key="theme_sunset", help="Switch to Sunset Strip theme"):
+            st.session_state.current_theme = "sunset"
+            st.rerun()
+        if st.button("🌿 Toxic Jungle", key="theme_forest", help="Switch to Toxic Jungle theme"):
+            st.session_state.current_theme = "forest"
+            st.rerun()
+
+    st.markdown("---")
+    st.markdown("### 🕹️ Actions")
+    
+    # VIP Toggle - COLORED
+    vip_label = "🌟 VIP ON" if st.session_state.vip_mode else "👑 VIP OFF"
+    vip_help = "VIP customers skip to front of queue" if st.session_state.vip_mode else "Turn on VIP mode"
+    
+    if st.button(vip_label, key="vip_toggle", help=vip_help):
         st.session_state.vip_mode = not st.session_state.vip_mode
         st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
+
+    # Add Button - COLORED
+    add_label = "✨ Add VIP Guest" if st.session_state.vip_mode else "➕ Add Customer"
+    add_icon = "✨" if st.session_state.vip_mode else "➕"
+    add_help = "Add a VIP customer to the queue" if st.session_state.vip_mode else "Add a regular customer to the queue"
     
-    # Add Random Guest Button
-    st.markdown('<div class="add-button">', unsafe_allow_html=True)
-    btn_label = "✨ Add Random VIP Guest" if st.session_state.vip_mode else "➕ Add Random Guest"
-    if st.button(btn_label, use_container_width=True):
-        enqueue_random()
+    if st.button(f"{add_icon} {add_label}", key="add_customer", help=add_help):
+        enqueue()
         st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
     
-    st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
+    st.write("")
     
-    # Serve Button
-    st.markdown('<div class="serve-button">', unsafe_allow_html=True)
-    if st.button("🎟️ SERVE NEXT GUEST", use_container_width=True):
-        served = dequeue()
-        if served:
-            st.toast(f"Served {served['name']}!")
+    # Serve Button - COLORED PRIMARY
+    serve_disabled = len(st.session_state.queue) == 0
+    serve_text = "🎟️ Serve Next Customer" if not serve_disabled else "⏳ Queue Empty"
+    serve_help = "Serve the next customer in queue" if not serve_disabled else "Add customers first"
+    
+    if st.button(serve_text, key="serve_next", help=serve_help, type="primary", disabled=serve_disabled):
+        dequeue()
         st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
     
+    # Reset Button - COLORED RED
+    st.markdown("---")
+    if st.button("🔄 Reset Queue & History", key="reset", help="Clear all customers and history"):
+        reset_queue()
+        st.rerun()
+        
     st.markdown("---")
     
-    # Statistics
-    st.subheader("📊 Live Stats")
-    stats = get_statistics()
+    # Stats
+    wait_time = max(0, (len(st.session_state.queue) - 1) * 2)
+    st.markdown(f"""
+    <div style="display:flex; justify-content:space-around; text-align:center; color:#333;">
+        <div>
+            <div style="font-size:1.5rem; font-weight:900;">{len(st.session_state.queue)}</div>
+            <div style="font-size:0.8rem;">IN LINE</div>
+        </div>
+        <div>
+            <div style="font-size:1.5rem; font-weight:900;">{wait_time}m</div>
+            <div style="font-size:0.8rem;">WAIT</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     
-    col_a, col_b = st.columns(2)
-    with col_a:
-        st.markdown(f"""
-        <div class="stat-card">
-            <div class="stat-number">{stats['current_queue']}</div>
-            <div class="stat-label">In Line</div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown(f"""
-        <div class="stat-card">
-            <div class="stat-number">{stats['vip_served']}</div>
-            <div class="stat-label">VIP Served</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col_b:
-        st.markdown(f"""
-        <div class="stat-card">
-            <div class="stat-number">{stats['avg_wait_time']}m</div>
-            <div class="stat-label">Wait Time</div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown(f"""
-        <div class="stat-card">
-            <div class="stat-number">{stats['total_served']}</div>
-            <div class="stat-label">Total Served</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # Progress Bar for Queue
-    if stats['current_queue'] > 0:
-        progress = min(100, (stats['current_queue'] / 10) * 100)
-        st.markdown(f"""
-        <div style="margin-top:20px;">
-            <div style="display:flex; justify-content:space-between;">
-                <small>Queue Load</small>
-                <small>{stats['current_queue']}/10</small>
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# --- CENTER: QUEUE ---
+with col_queue:
+    if not st.session_state.queue:
+        st.markdown("""
+        <div class="glass-panel" style="text-align:center; padding: 50px;">
+            <div style="font-size: 4rem; opacity: 0.5;">💤</div>
+            <h3>Lobby is Empty</h3>
+            <p>Add customers to start the show!</p>
+            <div style="margin-top: 20px; font-size: 2rem; animation: bounce 2s infinite;">
+                👇
             </div>
-            <div class="progress-container">
-                <div class="progress-bar" style="width:{progress}%"></div>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown(f'<h3 style="color: white; margin-bottom: 15px;">🎬 Active Queue ({len(st.session_state.queue)} waiting)</h3>', unsafe_allow_html=True)
+        
+        for index, ticket in enumerate(st.session_state.queue):
+            is_first = (index == 0)
+            status_text = "SERVING NOW" if is_first else f"WAITING #{index}"
+            
+            # Dynamic Classes
+            card_class = "ticket-card"
+            if is_first: card_class += " ticket-active"
+            if ticket['is_vip']: card_class += " ticket-vip"
+            
+            vip_badge = '<span style="background:#FFD700; color:#B8860B; padding:2px 6px; border-radius:4px; font-size:0.7rem; margin-left:5px; font-weight:bold;">VIP</span>' if ticket['is_vip'] else ""
+            
+            st.markdown(f"""
+            <div class="{card_class}">
+                <div class="avatar">{ticket['avatar']}</div>
+                <div class="ticket-info">
+                    <div style="display:flex; justify-content:space-between;">
+                        <span class="ticket-id">#{ticket['id']} {vip_badge}</span>
+                        <span style="font-size:0.7rem; font-weight:bold; color:{current_theme_data['accent'] if is_first else '#aaa'}">{status_text}</span>
+                    </div>
+                    <div style="font-weight:bold; color:#555;">{ticket['name']}</div>
+                    <div class="ticket-meta">{ticket['snack']} • {ticket['joined']}</div>
+                </div>
             </div>
-            <small style="color:#666; display:block
+            """, unsafe_allow_html=True)
+
+# --- RIGHT: HISTORY ---
+with col_hist:
+    st.markdown('<div class="glass-panel">', unsafe_allow_html=True)
+    
+    history_count = len(st.session_state.history)
+    st.markdown(f"### ✅ Served ({history_count})")
+    
+    if not st.session_state.history:
+        st.markdown("""
+        <div style='text-align: center; padding: 30px; color: #666;'>
+            <div style='font-size: 3rem; opacity: 0.5;'>📝</div>
+            <p>No customers served yet</p>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        for item in st.session_state.history[:8]:  # Show more history
+            st.markdown(f"""
+            <div class="history-item">
+                <div style="font-weight:bold;">
+                    #{item['id']} {item['name']} {item['avatar']}
+                </div>
+                <div class="ai-msg">"{item.get('cinema_msg', 'Enjoy the show!')}"</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+    st.markdown('</div>', unsafe_allow_html=True)
