@@ -1,840 +1,718 @@
 import streamlit as st
 import random
+import time
 from datetime import datetime
+import os
+import json
+from pathlib import Path
+
+# Try to import Google GenAI, handle if not installed or key missing
+try:
+    from google import genai
+    from google.genai import types
+    HAS_GENAI_LIB = True
+except ImportError:
+    HAS_GENAI_LIB = False
 
 # --- 1. PAGE SETUP ---
 st.set_page_config(
-    page_title="Cinema Queue Live", 
-    page_icon="👑", 
+    page_title="Neon Cinema Live", 
+    page_icon="🍿", 
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. ADVANCED UI/UX STYLING (Gradient Edition) ---
-st.markdown("""
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800&family=Poppins:wght@900&display=swap');
+# --- 2. CONFIGURATION & STATE ---
+THEMES = {
+    "Neon City": "linear-gradient(-45deg, #FF3CAC, #784BA0, #2B86C5, #23d5ab)",
+    "Sunset Strip": "linear-gradient(-45deg, #FF512F, #DD2476, #F09819, #FF512F)",
+    "Toxic Jungle": "linear-gradient(-45deg, #11998e, #38ef7d, #00b09b, #96c93d)",
+    "Midnight": "linear-gradient(-45deg, #0f0c29, #302b63, #24243e, #000000)",
+    "Candy": "linear-gradient(-45deg, #FF9A9E, #FAD0C4, #FAD0C4, #FFD1FF)",
+}
 
-    /* --- ANIMATED GRADIENT BACKGROUND --- */
-    .stApp {
-        background: linear-gradient(-45deg, 
-            #667eea 0%, 
-            #764ba2 25%, 
-            #f093fb 50%, 
-            #f5576c 75%, 
-            #ff9a9e 100%);
+if 'queue' not in st.session_state: st.session_state.queue = []
+if 'history' not in st.session_state: st.session_state.history = []
+if 'ticket_id' not in st.session_state: st.session_state.ticket_id = 101
+if 'vip_mode' not in st.session_state: st.session_state.vip_mode = False
+if 'current_theme' not in st.session_state: st.session_state.current_theme = "Neon City"
+if 'user_api_key' not in st.session_state: st.session_state.user_api_key = None
+
+# --- 3. CUSTOM CSS (LIVELY DESIGN) ---
+theme_bg = THEMES[st.session_state.current_theme]
+
+st.markdown(f"""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&family=Poppins:wght@900&display=swap');
+
+    /* ANIMATED BACKGROUND */
+    .stApp {{
+        background: {theme_bg};
         background-size: 400% 400%;
-        animation: gradientBG 20s ease infinite;
+        animation: gradient 15s ease infinite;
         font-family: 'Nunito', sans-serif;
         min-height: 100vh;
-    }
+    }}
+    
+    @keyframes gradient {{
+        0% {{ background-position: 0% 50%; }}
+        50% {{ background-position: 100% 50%; }}
+        100% {{ background-position: 0% 50%; }}
+    }}
 
-    @keyframes gradientBG {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
-    }
+    /* HIDE STREAMLIT ELEMENTS */
+    header {{visibility: hidden;}}
+    footer {{visibility: hidden;}}
+    .stDeployButton {{display:none;}}
 
-    /* --- RESPONSIVE CONTAINERS --- */
-    .main-container {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 10px;
-    }
+    /* GLASSMORPHISM PANELS */
+    .glass-panel {{
+        background: rgba(255, 255, 255, 0.75);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.6);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
+        border-radius: 24px;
+        padding: 24px;
+        margin-bottom: 20px;
+    }}
 
-    @media (max-width: 768px) {
-        .main-container {
-            padding: 5px;
-        }
-    }
-
-    /* --- GLASSMORPHISM CONTAINERS WITH GRADIENTS --- */
-    .glass-panel {
-        background: linear-gradient(135deg, 
-            rgba(255, 255, 255, 0.95) 0%, 
-            rgba(255, 255, 255, 0.88) 100%);
+    /* SIDEBAR GLASS */
+    .sidebar .sidebar-content {{
+        background: rgba(255, 255, 255, 0.85);
         backdrop-filter: blur(15px);
         -webkit-backdrop-filter: blur(15px);
-        border: 2px solid rgba(255, 255, 255, 0.3);
-        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1),
-                    inset 0 1px 0 rgba(255, 255, 255, 0.4);
-        border-radius: 25px;
-        padding: 25px;
-        margin-bottom: 20px;
-        position: relative;
-        overflow: hidden;
-    }
+    }}
 
-    .glass-panel::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 4px;
-        background: linear-gradient(90deg, 
-            #667eea 0%, 
-            #764ba2 33%, 
-            #f093fb 66%, 
-            #f5576c 100%);
-        z-index: 1;
-    }
-
-    /* --- GRADIENT TYPOGRAPHY --- */
-    h1, h2, h3 { 
+    /* TYPOGRAPHY */
+    .hero-title {{
         font-family: 'Poppins', sans-serif;
-        margin-top: 0 !important;
-        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    
-    .hero-title {
-        font-size: 3rem;
+        font-size: 3.5rem;
         font-weight: 900;
-        background: linear-gradient(90deg, 
-            #667eea 0%, 
-            #764ba2 25%, 
-            #f093fb 50%, 
-            #f5576c 75%, 
-            #ff9a9e 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        margin: 0;
+        color: white;
+        text-shadow: 0 4px 10px rgba(0,0,0,0.3);
         text-align: center;
-        letter-spacing: -1px;
-        line-height: 1.2;
-        position: relative;
-        padding-bottom: 10px;
-    }
-
-    .hero-title::after {
-        content: '';
-        position: absolute;
-        bottom: 0;
-        left: 25%;
-        width: 50%;
-        height: 3px;
-        background: linear-gradient(90deg, 
-            #667eea 0%, 
-            #764ba2 50%, 
-            #f093fb 100%);
-        border-radius: 2px;
-    }
-    
-    .hero-subtitle {
+        text-transform: uppercase;
+        margin-bottom: 5px;
+    }}
+    .hero-subtitle {{
         text-align: center;
-        background: linear-gradient(90deg, #667eea, #764ba2);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+        color: rgba(255,255,255,0.9);
         font-weight: 700;
-        margin: 10px 0 20px 0;
-        font-size: 1.1rem;
-        letter-spacing: 1px;
-    }
+        font-size: 1.2rem;
+        margin-bottom: 30px;
+    }}
 
-    /* --- GRADIENT BUTTONS --- */
-    .stButton > button {
+    /* BUTTONS */
+    .stButton > button {{
         width: 100%;
         border-radius: 15px;
         height: 55px;
         font-weight: 800;
         border: none;
-        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         text-transform: uppercase;
-        letter-spacing: 1.5px;
+        letter-spacing: 1px;
         color: white;
-        margin: 8px 0;
-        font-size: 0.95rem;
-        position: relative;
-        overflow: hidden;
-        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-    }
+        transition: all 0.2s;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        margin-bottom: 10px;
+    }}
+    
+    /* Primary (Serve) - Orange/Gold */
+    div[data-testid="stVerticalBlock"] > div:nth-child(5) .stButton > button {{
+        background: linear-gradient(135deg, #FF9966 0%, #FF5E62 100%);
+    }}
+    
+    /* Secondary (Add) - Blue */
+    div[data-testid="stHorizontalBlock"] .stButton > button {{
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }}
 
-    .stButton > button::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, 
-            transparent, 
-            rgba(255,255,255,0.3), 
-            transparent);
-        transition: 0.5s;
-    }
+    /* Reset Button - Red */
+    .reset-button .stButton > button {{
+        background: linear-gradient(135deg, #FF416C 0%, #FF4B2B 100%);
+    }}
 
-    .stButton > button:hover::before {
-        left: 100%;
-    }
+    /* VIP Button Override */
+    .vip-active {{
+        border: 2px solid #FFD700 !important;
+        box-shadow: 0 0 15px #FFD700 !important;
+    }}
 
-    .stButton > button:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 12px 30px rgba(0,0,0,0.25);
-    }
+    .stButton > button:hover {{
+        transform: translateY(-3px) scale(1.02);
+        filter: brightness(1.1);
+    }}
+    .stButton > button:active {{
+        transform: translateY(1px);
+    }}
 
-    .stButton > button:active {
-        transform: translateY(-1px);
-        box-shadow: 0 6px 20px rgba(0,0,0,0.2);
-    }
-
-    /* Regular Add Button - Ocean Blue Gradient */
-    button[kind="secondary"]:has(+ div:contains("Add")) {
-        background: linear-gradient(135deg, 
-            #4facfe 0%, 
-            #00f2fe 100%);
-        border: 2px solid rgba(79, 172, 254, 0.3);
-    }
-
-    /* VIP Button - Royal Purple/Gold Gradient */
-    button[kind="secondary"]:has(+ div:contains("VIP")) {
-        background: linear-gradient(135deg, 
-            #8A2BE2 0%, 
-            #FFD700 50%, 
-            #FF8C00 100%);
-        border: 2px solid rgba(255, 215, 0, 0.3);
-        animation: vipGlow 2s infinite alternate;
-    }
-
-    @keyframes vipGlow {
-        0% { box-shadow: 0 8px 25px rgba(138, 43, 226, 0.3); }
-        100% { box-shadow: 0 8px 25px rgba(255, 215, 0, 0.5); }
-    }
-
-    /* Serve Button - Sunset Gradient */
-    button[kind="primary"] {
-        background: linear-gradient(135deg, 
-            #FF9966 0%, 
-            #FF5E62 50%, 
-            #FF2E63 100%);
-        border: 2px solid rgba(255, 94, 98, 0.3);
-        font-size: 1rem;
-    }
-
-    /* Reset Button - Deep Purple Gradient */
-    button[kind="secondary"]:has(+ div:contains("Reset")) {
-        background: linear-gradient(135deg, 
-            #667eea 0%, 
-            #764ba2 100%);
-        border: 2px solid rgba(118, 75, 162, 0.3);
-    }
-
-    /* --- GRADIENT TICKET STYLES --- */
-    .ticket-container {
-        display: flex;
-        align-items: center;
-        background: linear-gradient(135deg, 
-            rgba(255, 255, 255, 0.95) 0%, 
-            rgba(255, 255, 255, 0.9) 100%);
-        border-radius: 18px;
+    /* QUEUE CARDS */
+    .ticket-card {{
+        background: white;
+        border-radius: 16px;
         padding: 15px;
         margin-bottom: 12px;
-        box-shadow: 0 6px 20px rgba(0,0,0,0.08);
-        transition: all 0.4s ease;
-        border-left: 8px solid #e0e0e0;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .ticket-container::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: linear-gradient(135deg, 
-            rgba(255,255,255,0) 0%,
-            rgba(255,255,255,0.1) 100%);
-        z-index: 0;
-    }
-
-    .ticket-vip {
-        background: linear-gradient(135deg, 
-            rgba(255, 248, 225, 0.95) 0%, 
-            rgba(255, 255, 255, 0.9) 100%);
-        border-left: 8px solid #FFD700;
-        box-shadow: 0 8px 25px rgba(255, 215, 0, 0.2);
-    }
-
-    /* Golden Ticket Animation */
-    @keyframes shine {
-        0% { 
-            border-color: #FFD700; 
-            box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.3),
-                        inset 0 0 20px rgba(255, 215, 0, 0.1);
-        }
-        50% { 
-            border-color: #FFA500; 
-            box-shadow: 0 0 0 10px rgba(255, 215, 0, 0),
-                        inset 0 0 30px rgba(255, 215, 0, 0.2);
-        }
-        100% { 
-            border-color: #FFD700; 
-            box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.3),
-                        inset 0 0 20px rgba(255, 215, 0, 0.1);
-        }
-    }
-
-    .ticket-active {
-        background: linear-gradient(135deg, 
-            rgba(255, 253, 228, 0.95) 0%, 
-            rgba(255, 255, 255, 0.9) 100%);
-        border-left: 8px solid #FFD700;
-        animation: shine 2s infinite;
-        transform: scale(1.02);
-    }
-
-    .t-emoji { 
-        font-size: 2.2rem; 
-        margin-right: 15px; 
-        filter: drop-shadow(0 3px 5px rgba(0,0,0,0.15));
-        min-width: 45px;
-        text-align: center;
-        z-index: 1;
-        position: relative;
-    }
-    
-    .t-details { 
-        flex-grow: 1; 
-        min-width: 0;
-        z-index: 1;
-        position: relative;
-    }
-    
-    .t-id { 
-        font-weight: 900; 
-        font-size: 1.15rem; 
-        background: linear-gradient(90deg, #667eea, #764ba2);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    
-    .t-name { 
-        font-size: 1rem; 
-        color: #555;
-        margin: 3px 0;
-        font-weight: 600;
-    }
-    
-    .t-meta { 
-        font-size: 0.75rem; 
-        font-weight: 800; 
-        background: linear-gradient(90deg, #667eea, #764ba2);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        text-transform: uppercase; 
-        letter-spacing: 1px;
-    }
-    
-    .t-badge {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white; 
-        padding: 5px 12px; 
-        border-radius: 20px; 
-        font-size: 0.7rem; 
-        font-weight: bold;
-        white-space: nowrap;
-        display: inline-block;
-        margin-left: 8px;
-        box-shadow: 0 3px 10px rgba(102, 126, 234, 0.3);
-        border: 1px solid rgba(255,255,255,0.3);
-    }
-    
-    .badge-live { 
-        background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
-        color: #8a6d00; 
-        animation: badgePulse 1.5s infinite;
-    }
-
-    @keyframes badgePulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.05); }
-        100% { transform: scale(1); }
-    }
-    
-    .badge-vip {
-        background: linear-gradient(135deg, #8A2BE2 0%, #FFD700 100%);
-        color: white;
-        border: 1px solid rgba(255, 215, 0, 0.5);
-    }
-
-    /* --- GRADIENT STATS BOX --- */
-    .stat-box {
-        text-align: center;
-        padding: 20px;
-        background: linear-gradient(135deg, 
-            rgba(255, 255, 255, 0.9) 0%, 
-            rgba(255, 255, 255, 0.7) 100%);
-        border-radius: 20px;
-        margin: 20px 0;
-        border: 2px solid rgba(255, 255, 255, 0.4);
-        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-        position: relative;
-        overflow: hidden;
-    }
-
-    .stat-box::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 4px;
-        background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
-    }
-
-    .stat-num { 
-        font-size: 2.8rem; 
-        font-weight: 900; 
-        background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        line-height: 1;
-        margin: 10px 0;
-        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    
-    .stat-label { 
-        font-size: 0.85rem; 
-        color: #764ba2; 
-        font-weight: 800; 
-        letter-spacing: 1.5px;
-        text-transform: uppercase;
-    }
-
-    /* --- GRADIENT SCROLLABLE CONTAINERS --- */
-    .scrollable-container {
-        max-height: 400px;
-        overflow-y: auto;
-        padding-right: 8px;
-        margin-top: 10px;
-    }
-    
-    .scrollable-container::-webkit-scrollbar {
-        width: 8px;
-    }
-    
-    .scrollable-container::-webkit-scrollbar-track {
-        background: linear-gradient(180deg, 
-            rgba(255,255,255,0.1) 0%,
-            rgba(255,255,255,0.3) 100%);
-        border-radius: 10px;
-    }
-    
-    .scrollable-container::-webkit-scrollbar-thumb {
-        background: linear-gradient(180deg, #667eea, #764ba2);
-        border-radius: 10px;
-        border: 2px solid rgba(255,255,255,0.3);
-    }
-
-    /* --- GRADIENT VIP INDICATOR --- */
-    .vip-indicator {
-        display: inline-block;
-        background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
-        color: #8a6d00;
-        padding: 3px 10px;
-        border-radius: 15px;
-        font-size: 0.7rem;
-        font-weight: bold;
-        margin-left: 8px;
-        animation: vipPulse 2s infinite;
-        border: 1px solid rgba(255, 215, 0, 0.5);
-        box-shadow: 0 3px 10px rgba(255, 215, 0, 0.3);
-    }
-
-    @keyframes vipPulse {
-        0% { transform: scale(1); box-shadow: 0 3px 10px rgba(255, 215, 0, 0.3); }
-        50% { transform: scale(1.08); box-shadow: 0 5px 15px rgba(255, 215, 0, 0.5); }
-        100% { transform: scale(1); box-shadow: 0 3px 10px rgba(255, 215, 0, 0.3); }
-    }
-
-    /* --- GRADIENT SERVED ITEMS --- */
-    .served-item {
-        padding: 12px 15px;
-        border-bottom: 1px solid rgba(255,255,255,0.3);
         display: flex;
         align-items: center;
-        transition: all 0.3s ease;
-        background: linear-gradient(135deg, 
-            rgba(255,255,255,0.9) 0%,
-            rgba(255,255,255,0.7) 100%);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        border-left: 6px solid #e0e0e0;
+        animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }}
+
+    @keyframes popIn {{
+        from {{ opacity: 0; transform: scale(0.9) translateY(10px); }}
+        to {{ opacity: 1; transform: scale(1) translateY(0); }}
+    }}
+
+    .ticket-active {{
+        border-left: 8px solid #00C9FF;
+        background: linear-gradient(to right, #FFFDE4, #FFFFFF);
+        transform: scale(1.02);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        border: 2px solid rgba(0, 201, 255, 0.3);
+    }}
+
+    .ticket-vip {{
+        border-left: 8px solid #FFD700;
+        background: #fffcf0;
+        border: 2px solid #FFD700;
+    }}
+
+    .t-avatar {{ font-size: 2.5rem; margin-right: 15px; }}
+    .t-info {{ flex-grow: 1; }}
+    .t-name {{ font-weight: 800; color: #333; font-size: 1.1rem; }}
+    .t-meta {{ font-size: 0.8rem; color: #777; display: flex; gap: 10px; }}
+    .badge {{ 
+        background: #eee; padding: 2px 8px; border-radius: 4px; 
+        font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+    }}
+
+    /* HISTORY */
+    .history-item {{
+        padding: 10px;
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+        font-size: 0.9rem;
+    }}
+    .ai-msg {{
+        font-style: italic;
+        color: #555;
+        background: rgba(255,255,255,0.5);
+        padding: 8px;
+        border-radius: 8px;
+        margin-top: 5px;
+        border-left: 3px solid #8A2387;
+    }}
+
+    /* STATS CARDS */
+    .stat-card {{
+        background: white;
         border-radius: 12px;
-        margin-bottom: 8px;
-        box-shadow: 0 3px 10px rgba(0,0,0,0.05);
-    }
-
-    .served-item:hover {
-        transform: translateX(5px);
-        background: linear-gradient(135deg, 
-            rgba(255,255,255,1) 0%,
-            rgba(255,255,255,0.8) 100%);
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-    }
-
-    /* --- RESPONSIVE COLUMNS --- */
-    @media (max-width: 768px) {
-        .st-emotion-cache-1kyxreq {
-            flex-direction: column;
-        }
-        .ticket-container {
-            padding: 12px;
-        }
-        .t-emoji {
-            font-size: 1.8rem;
-            margin-right: 10px;
-        }
-        .glass-panel {
-            padding: 20px;
-        }
-        .hero-title {
-            font-size: 2.2rem;
-        }
-    }
-
-    /* --- GRADIENT DIVIDERS --- */
-    hr {
-        height: 3px;
-        background: linear-gradient(90deg, 
-            transparent 0%, 
-            #667eea 20%, 
-            #764ba2 50%, 
-            #f093fb 80%, 
-            transparent 100%);
-        border: none;
-        margin: 25px 0;
-        border-radius: 2px;
-    }
-
-    /* --- GRADIENT CAPTIONS --- */
-    .st-caption {
-        background: linear-gradient(90deg, #667eea, #764ba2);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        font-weight: 700 !important;
-    }
-
-    /* --- GRADIENT FOOTER --- */
-    .gradient-footer {
+        padding: 15px;
         text-align: center;
-        margin-top: 30px;
-        padding: 15px;
-        background: linear-gradient(135deg, 
-            rgba(255,255,255,0.2) 0%,
-            rgba(255,255,255,0.1) 100%);
-        border-radius: 15px;
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255,255,255,0.2);
-    }
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        margin: 5px;
+    }}
+    .stat-number {{
+        font-size: 2rem;
+        font-weight: 900;
+        color: #333;
+    }}
+    .stat-label {{
+        font-size: 0.8rem;
+        color: #666;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }}
 
-    /* --- QUICK STATS GRADIENT --- */
-    .quick-stats {
-        background: linear-gradient(135deg, 
-            rgba(255,255,255,0.8) 0%,
-            rgba(255,255,255,0.6) 100%);
-        padding: 15px;
-        border-radius: 15px;
-        margin-top: 15px;
-        border: 1px solid rgba(255,255,255,0.3);
-    }
-
-    .quick-stats strong {
-        background: linear-gradient(90deg, #667eea, #764ba2);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-    }
+    /* PROGRESS BAR */
+    .progress-container {{
+        width: 100%;
+        background: rgba(0,0,0,0.1);
+        border-radius: 10px;
+        margin: 10px 0;
+    }}
+    .progress-bar {{
+        height: 8px;
+        border-radius: 10px;
+        background: linear-gradient(90deg, #00C9FF 0%, #92FE9D 100%);
+        transition: width 0.3s ease;
+    }}
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. SESSION LOGIC ---
-if 'queue' not in st.session_state: 
-    st.session_state.queue = []
-if 'history' not in st.session_state: 
-    st.session_state.history = []
-if 'ticket_id' not in st.session_state: 
-    st.session_state.ticket_id = 101
-if 'vip_count' not in st.session_state:
-    st.session_state.vip_count = 0
+# --- 4. HELPERS & LOGIC ---
 
-# Expanded Data
-NAMES = ["Kai", "Luna", "Milo", "Nova", "Leo", "Mia", "Zane", "Cleo", "Jax", "Ivy", "Finn", "Ruby"]
-AVATARS = ["🐼", "🦊", "🦄", "🦁", "🐯", "🐸", "🐙", "🐵", "🐨", "🐷", "🐻", "🐲"]
-VIP_AVATARS = ["👑", "⭐", "🌟", "💎", "🎩", "💍"]
+def get_api_key():
+    """Get API key from multiple sources in priority order"""
+    # 1. User input in session state
+    if st.session_state.user_api_key:
+        return st.session_state.user_api_key
+    
+    # 2. Streamlit secrets
+    if "API_KEY" in st.secrets:
+        return st.secrets["API_KEY"]
+    
+    # 3. Environment variable
+    if "GOOGLE_API_KEY" in os.environ:
+        return os.environ["GOOGLE_API_KEY"]
+    
+    return None
 
-def enqueue(is_vip=False):
-    """Add a new customer to the queue"""
-    name = random.choice(NAMES)
+def get_random_data():
+    names = ["Kai", "Luna", "Milo", "Nova", "Leo", "Mia", "Zane", "Cleo", "Jax", "Ivy", "Finn"]
+    avatars = ["🐼", "🦊", "🦄", "🦁", "🐯", "🐸", "🐙", "🐵", "🐨", "🐷", "🐻"]
+    snacks = ["🍿 Popcorn", "🥤 Soda", "🌭 Hotdog", "🥨 Pretzel", "🍫 Candy", "🌮 Nachos"]
+    return random.choice(names), random.choice(avatars), random.choice(snacks)
+
+def get_ai_message(name, snack, theme):
+    """Generates a message using Gemini, or a fallback if no key is present."""
     
-    if is_vip:
-        avatar = random.choice(VIP_AVATARS)
-        st.session_state.vip_count += 1
-        vip_badge = "VIP"
-        st.toast("👑 VIP Customer Added!", icon="🌟")
-    else:
-        avatar = random.choice(AVATARS)
-        vip_badge = ""
-        st.toast("🎬 Customer Added to Queue", icon="✅")
-    
+    api_key = get_api_key()
+        
+    # If no key or no lib, return fallback
+    if not api_key or not HAS_GENAI_LIB:
+        fallbacks = [
+            f"Enjoy your {snack}, {name}!",
+            f"Welcome to the movies, {name}!",
+            f"Grab a seat, {name}!",
+            "Showtime! Enjoy the snacks.",
+            f"{name}, your {snack} awaits!",
+            f"Roll the film for {name}!",
+            f"Dim the lights, {name} is here!"
+        ]
+        return random.choice(fallbacks)
+
+    # Call Gemini
+    try:
+        client = genai.Client(api_key=api_key)
+        prompt = f"Generate a witty, very short (max 7 words) cinema welcome for {name}. Context: They ordered {snack}. Theme: {theme}. Be creative and fun."
+        
+        response = client.models.generate_content(
+            model='gemini-2.0-flash',
+            contents=prompt
+        )
+        return response.text.strip()
+    except Exception as e:
+        st.error(f"AI Error: {str(e)}")
+        return f"Welcome {name}! Enjoy your movie!"
+
+def enqueue_custom(name, avatar, snack, is_vip):
+    """Add a custom guest to the queue"""
     new_ticket = {
         "id": st.session_state.ticket_id,
         "name": name,
         "avatar": avatar,
-        "joined": datetime.now().strftime("%H:%M:%S"),
-        "is_vip": is_vip,
-        "vip_badge": vip_badge
+        "snack": snack,
+        "joined": datetime.now().strftime("%I:%M %p"),
+        "is_vip": is_vip
     }
     
-    if is_vip:
-        # VIP customers go to the front (after other VIPs)
-        vip_position = 0
-        for i, ticket in enumerate(st.session_state.queue):
-            if not ticket['is_vip']:
-                vip_position = i
-                break
-            else:
-                vip_position = i + 1
-        st.session_state.queue.insert(vip_position, new_ticket)
+    st.session_state.ticket_id += 1
+    
+    # VIP Logic: Insert at index 1 (behind current server) or 0 if empty
+    if is_vip and len(st.session_state.queue) > 0:
+        st.session_state.queue.insert(1, new_ticket)
     else:
         st.session_state.queue.append(new_ticket)
     
-    st.session_state.ticket_id += 1
+    return new_ticket
+
+def enqueue_random():
+    """Add a random guest to the queue"""
+    name, avatar, snack = get_random_data()
+    return enqueue_custom(name, avatar, snack, st.session_state.vip_mode)
 
 def dequeue():
-    """Serve the next customer in the queue"""
-    if st.session_state.queue:
-        person = st.session_state.queue.pop(0)
-        person['served'] = datetime.now().strftime("%H:%M:%S")
-        st.session_state.history.insert(0, person)
-        
-        if person['is_vip']:
-            st.session_state.vip_count -= 1
-            st.toast(f"👑 VIP #{person['id']} served!", icon="🎉")
-            st.balloons()
-        else:
-            # Celebrate every 3rd regular customer
-            if len(st.session_state.history) % 3 == 0:
-                st.toast(f"🎬 #{person['id']} served!", icon="🎬")
-                st.balloons()
-    else:
-        st.toast("⚠️ Queue is empty! Add customers first.", icon="📭")
+    if not st.session_state.queue:
+        st.toast("⚠️ Queue is empty!")
+        return None
 
-def reset_app():
-    """Reset the entire application"""
+    # Pop the first person
+    person = st.session_state.queue.pop(0)
+    
+    # Generate Message
+    msg = get_ai_message(person['name'], person['snack'], st.session_state.current_theme)
+    person['out_time'] = datetime.now().strftime("%I:%M %p")
+    person['message'] = msg
+    
+    # Add to history
+    st.session_state.history.insert(0, person)
+    
+    # Occasional fun
+    if len(st.session_state.history) % 5 == 0:
+        st.balloons()
+    elif len(st.session_state.history) % 7 == 0:
+        st.snow()
+    
+    return person
+
+def reset():
     st.session_state.queue = []
     st.session_state.history = []
     st.session_state.ticket_id = 101
-    st.session_state.vip_count = 0
-    st.toast("🔄 System Reset Complete", icon="🔄")
-    st.rerun()
+    st.session_state.vip_mode = False
 
-# --- 4. LAYOUT STRUCTURE ---
+def save_history():
+    """Save history to a JSON file"""
+    try:
+        history_data = {
+            "history": st.session_state.history,
+            "total_served": len(st.session_state.history),
+            "timestamp": datetime.now().isoformat(),
+            "theme": st.session_state.current_theme
+        }
+        
+        # Create data directory if it doesn't exist
+        Path("data").mkdir(exist_ok=True)
+        
+        # Save to file
+        with open("data/cinema_history.json", "w") as f:
+            json.dump(history_data, f, indent=2)
+        
+        return True
+    except Exception as e:
+        st.error(f"Failed to save history: {e}")
+        return False
 
-# Main container for better responsiveness
-st.markdown('<div class="main-container">', unsafe_allow_html=True)
+def load_history():
+    """Load history from JSON file"""
+    try:
+        if Path("data/cinema_history.json").exists():
+            with open("data/cinema_history.json", "r") as f:
+                data = json.load(f)
+                # Optional: You could load the history back
+                # st.session_state.history = data.get("history", [])
+            return data
+    except Exception as e:
+        st.error(f"Failed to load history: {e}")
+    return None
 
-# Title Area
-st.markdown("""
-    <div class="glass-panel" style="text-align: center; padding: 20px; margin-top: 5px;">
-        <div class="hero-title">🌈 PREMIERE CINEMA</div>
-        <div class="hero-subtitle">Gradient Queue Management System</div>
-    </div>
-""", unsafe_allow_html=True)
+def get_statistics():
+    """Calculate various statistics"""
+    total_served = len(st.session_state.history)
+    vip_served = len([h for h in st.session_state.history if h.get('is_vip', False)])
+    regular_served = total_served - vip_served
+    
+    # Most popular snack
+    snack_counts = {}
+    for person in st.session_state.history:
+        snack = person.get('snack', 'Unknown')
+        snack_counts[snack] = snack_counts.get(snack, 0) + 1
+    
+    most_popular = max(snack_counts.items(), key=lambda x: x[1]) if snack_counts else ("None", 0)
+    
+    # Peak time (simplified)
+    time_counts = {}
+    for person in st.session_state.history:
+        time_str = person.get('joined', '')
+        hour = time_str.split(':')[0] if ':' in time_str else 'Unknown'
+        time_counts[hour] = time_counts.get(hour, 0) + 1
+    
+    peak_hour = max(time_counts.items(), key=lambda x: x[1]) if time_counts else ("None", 0)
+    
+    return {
+        "total_served": total_served,
+        "vip_served": vip_served,
+        "regular_served": regular_served,
+        "most_popular_snack": most_popular[0],
+        "snack_count": most_popular[1],
+        "peak_hour": peak_hour[0],
+        "current_queue": len(st.session_state.queue),
+        "avg_wait_time": max(0, len(st.session_state.queue) - 1) * 2
+    }
 
-# Create columns with responsive ratios
-col1, col2, col3 = st.columns([1, 1.5, 1], gap="medium")
+# --- 5. SIDEBAR ---
+with st.sidebar:
+    st.markdown("## ⚙️ Configuration")
+    
+    # API Key Input
+    st.markdown("### 🔑 API Settings")
+    api_key = get_api_key()
+    
+    if not api_key:
+        st.warning("AI features disabled - no API key found")
+        user_key = st.text_input("Enter Google API Key:", type="password", 
+                                help="Get your API key from https://makersuite.google.com/app/apikey")
+        
+        if user_key:
+            st.session_state.user_api_key = user_key
+            st.success("API key saved! Refresh to enable AI features.")
+            st.rerun()
+    else:
+        st.success("✅ AI features enabled")
+        if st.button("Clear API Key"):
+            st.session_state.user_api_key = None
+            st.rerun()
+    
+    st.markdown("---")
+    
+    # Custom Guest Addition
+    st.markdown("### 🎭 Add Custom Guest")
+    
+    with st.expander("Create Custom Ticket", expanded=False):
+        col1, col2 = st.columns(2)
+        with col1:
+            custom_name = st.text_input("Guest Name", "Guest")
+        with col2:
+            custom_avatar = st.selectbox("Avatar", 
+                ["🐼", "🦊", "🦄", "🦁", "🐯", "🐸", "🐙", "🐵", "🐨", "🐷", "🐻", "👤", "🎭"])
+        
+        custom_snack = st.selectbox("Snack Order", 
+            ["🍿 Popcorn", "🥤 Soda", "🌭 Hotdog", "🥨 Pretzel", "🍫 Candy", "🌮 Nachos", "🍿🍫 Combo"])
+        
+        custom_vip = st.checkbox("VIP Guest", value=False)
+        
+        if st.button("Add Custom Guest", use_container_width=True):
+            enqueue_custom(custom_name, custom_avatar, custom_snack, custom_vip)
+            st.success(f"Added {custom_name} to the queue!")
+            st.rerun()
+    
+    st.markdown("---")
+    
+    # History Management
+    st.markdown("### 📊 Data Management")
+    
+    if st.button("💾 Save History", use_container_width=True):
+        if save_history():
+            st.success("History saved successfully!")
+    
+    if st.button("📈 View Statistics", use_container_width=True):
+        stats = get_statistics()
+        st.info(f"""
+        **Today's Stats:**
+        - Total Served: {stats['total_served']}
+        - VIP Guests: {stats['vip_served']}
+        - Most Popular: {stats['most_popular_snack']}
+        - Current Queue: {stats['current_queue']}
+        """)
 
-# --- COLUMN 1: CONTROLS ---
+# --- 6. MAIN LAYOUT ---
+
+st.markdown('<div class="hero-title">🍿 Neon Cinema</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="hero-subtitle">Theme: {st.session_state.current_theme}</div>', unsafe_allow_html=True)
+
+col1, col2, col3 = st.columns([1, 1.2, 1], gap="medium")
+
+# --- LEFT: CONTROLS & STATS ---
 with col1:
     st.markdown('<div class="glass-panel">', unsafe_allow_html=True)
-    st.markdown("### 🎮 Controls")
+    st.subheader("🎨 Theme Selector")
     
-    # Button Container
-    button_col1, button_col2 = st.columns(2, gap="small")
+    # Theme Switcher with preview
+    selected_theme = st.selectbox("Select Vibe", list(THEMES.keys()), 
+                                 index=list(THEMES.keys()).index(st.session_state.current_theme),
+                                 label_visibility="collapsed")
     
-    with button_col1:
-        if st.button("➕ Add", type="secondary", use_container_width=True):
-            enqueue(is_vip=False)
-            st.rerun()
+    if selected_theme != st.session_state.current_theme:
+        st.session_state.current_theme = selected_theme
+        st.rerun()
     
-    with button_col2:
-        if st.button("👑 VIP", type="secondary", use_container_width=True):
-            enqueue(is_vip=True)
-            st.rerun()
+    st.markdown(f"""
+    <div style="text-align:center; margin:10px 0; padding:10px; border-radius:10px; background:rgba(255,255,255,0.5);">
+        <small>Current: {selected_theme}</small>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    st.subheader("🕹️ Quick Actions")
+    
+    # VIP Toggle
+    vip_label = "🌟 VIP MODE: ON" if st.session_state.vip_mode else "⚪ VIP Mode: Off"
+    vip_color = "#FFD700" if st.session_state.vip_mode else "#666"
+    
+    if st.button(vip_label, use_container_width=True):
+        st.session_state.vip_mode = not st.session_state.vip_mode
+        st.rerun()
+    
+    # Add Random Guest Button
+    btn_label = "🎭 Add Random VIP" if st.session_state.vip_mode else "➕ Add Random Guest"
+    if st.button(btn_label, use_container_width=True):
+        enqueue_random()
+        st.rerun()
+    
+    st.markdown("<div style='height:15px'></div>", unsafe_allow_html=True)
     
     # Serve Button
-    if st.button("🎬 Serve Next", type="primary", use_container_width=True):
-        dequeue()
+    if st.button("🎟️ Serve Next Guest", use_container_width=True):
+        served = dequeue()
+        if served:
+            st.toast(f"Served {served['name']}!")
         st.rerun()
     
     st.markdown("---")
     
-    # Reset Button
-    if st.button("🔄 Reset System", type="secondary", use_container_width=True):
-        reset_app()
+    # Statistics
+    stats = get_statistics()
     
-    # Stats
-    col_stat1, col_stat2 = st.columns(2)
-    with col_stat1:
-        waiting_count = len(st.session_state.queue)
+    col_a, col_b = st.columns(2)
+    with col_a:
         st.markdown(f"""
-            <div class="stat-box">
-                <div class="stat-num">{waiting_count}</div>
-                <div class="stat-label">WAITING</div>
-            </div>
-        """, unsafe_allow_html=True)
-    
-    with col_stat2:
-        vip_count = st.session_state.vip_count
-        st.markdown(f"""
-            <div class="stat-box">
-                <div class="stat-num">{vip_count}</div>
-                <div class="stat-label">VIP</div>
-            </div>
-        """, unsafe_allow_html=True)
-    
-    # Quick Stats
-    st.markdown("---")
-    served_count = len(st.session_state.history)
-    st.markdown("""
-        <div class="quick-stats">
-            <strong>📊 Quick Stats</strong>
+        <div class="stat-card">
+            <div class="stat-number">{stats['current_queue']}</div>
+            <div class="stat-label">In Line</div>
         </div>
-    """, unsafe_allow_html=True)
-    st.markdown(f"""
-    <div style="padding: 10px;">
-    - **Total Served:** <strong>{served_count}</strong><br>
-    - **Next Ticket:** <strong>#{st.session_state.ticket_id}</strong><br>
-    - **Est. Wait:** <strong>{len(st.session_state.queue) * 2} mins</strong>
-    </div>
-    """)
+        """, unsafe_allow_html=True)
+        
+        st.markdown(f"""
+        <div class="stat-card">
+            <div class="stat-number">{stats['vip_served']}</div>
+            <div class="stat-label">VIP Served</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col_b:
+        st.markdown(f"""
+        <div class="stat-card">
+            <div class="stat-number">{stats['avg_wait_time']}m</div>
+            <div class="stat-label">Wait Time</div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown(f"""
+        <div class="stat-card">
+            <div class="stat-number">{stats['total_served']}</div>
+            <div class="stat-label">Total Served</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Progress Bar for Queue
+    if stats['current_queue'] > 0:
+        progress = min(100, (stats['current_queue'] / 10) * 100)
+        st.markdown(f"""
+        <div style="margin-top:15px;">
+            <div style="display:flex; justify-content:space-between;">
+                <small>Queue Load</small>
+                <small>{stats['current_queue']}/10</small>
+            </div>
+            <div class="progress-container">
+                <div class="progress-bar" style="width:{progress}%"></div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
     
     st.markdown('</div>', unsafe_allow_html=True)
-
-# --- COLUMN 2: THE QUEUE ---
-with col2:
-    st.markdown('<div class="glass-panel">', unsafe_allow_html=True)
-    st.markdown(f"### 🎟️ Live Queue ({len(st.session_state.queue)})")
     
+    # Reset Button
+    st.markdown('<div class="reset-button">', unsafe_allow_html=True)
+    if st.button("🔄 Reset Entire System", use_container_width=True):
+        reset()
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# --- CENTER: THE QUEUE ---
+with col2:
     if not st.session_state.queue:
         st.markdown("""
-        <div style="text-align:center; padding: 40px; color: #666;">
-            <div style="font-size: 4rem; opacity: 0.5; margin-bottom: 20px;">
-                <div style="background: linear-gradient(135deg, #667eea, #764ba2, #f093fb);
-                           -webkit-background-clip: text;
-                           -webkit-text-fill-color: transparent;">💤</div>
+        <div class="glass-panel" style="text-align:center; padding:50px;">
+            <div style="font-size:4rem; opacity:0.5;">💤</div>
+            <h3>Lobby is Empty</h3>
+            <p>Add customers to start the movie!</p>
+            <div style="margin-top:20px;">
+                <small>Use the controls on the left or sidebar to add guests</small>
             </div>
-            <h3 style="color:#764ba2; margin: 10px 0;">Queue is Empty</h3>
-            <p style="color:#888; font-weight: 500;">Add customers to start the magic!</p>
         </div>
         """, unsafe_allow_html=True)
     else:
-        st.markdown('<div class="scrollable-container">', unsafe_allow_html=True)
         for i, ticket in enumerate(st.session_state.queue):
             is_first = (i == 0)
+            is_vip = ticket['is_vip']
             
-            # Determine card class
-            if is_first:
-                card_class = "ticket-container ticket-active"
-            elif ticket['is_vip']:
-                card_class = "ticket-container ticket-vip"
-            else:
-                card_class = "ticket-container"
+            # Determine CSS classes
+            card_class = "ticket-card"
+            if is_first: card_class += " ticket-active"
+            if is_vip: card_class += " ticket-vip"
             
-            # Determine badge
-            if is_first:
-                badge_html = '<span class="t-badge badge-live">NOW SERVING</span>'
-            elif ticket['is_vip']:
-                badge_html = '<span class="t-badge badge-vip">VIP PRIORITY</span>'
-            else:
-                badge_html = f'<span class="t-badge">#{i+1} IN LINE</span>'
+            status_badge = "🎬 SERVING NOW" if is_first else f"⏳ WAITING #{i}"
+            badge_color = "#00C9FF" if is_first else "#eee"
+            text_color = "white" if is_first else "#555"
             
-            # VIP indicator
-            vip_indicator = '<span class="vip-indicator">VIP</span>' if ticket['is_vip'] else ''
+            vip_badge = '<span class="badge" style="background:#FFD700; color:#B8860B; margin-left:5px;">VIP</span>' if is_vip else ""
+            
+            # Calculate wait time (2 minutes per position)
+            wait_time = i * 2
             
             st.markdown(f"""
             <div class="{card_class}">
-                <div class="t-emoji">{ticket['avatar']}</div>
-                <div class="t-details">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 5px;">
-                        <span class="t-id">#{ticket['id']} {ticket['name']} {vip_indicator}</span>
-                        {badge_html}
+                <div class="t-avatar">{ticket['avatar']}</div>
+                <div class="t-info">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                        <span style="font-weight:900; font-size:1.1rem;">#{ticket['id']} {vip_badge}</span>
+                        <span class="badge" style="background:{badge_color}; color:{text_color};">{status_badge}</span>
                     </div>
-                    <div class="t-meta">Joined: {ticket['joined']}</div>
+                    <div class="t-name">{ticket['name']}</div>
+                    <div class="t-meta">
+                        <span>{ticket['snack']}</span> • 
+                        <span>Joined: {ticket['joined']}</span> •
+                        <span>Wait: {wait_time}min</span>
+                    </div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
 
-# --- COLUMN 3: RECENTLY SERVED ---
+# --- RIGHT: HISTORY & ACTIVITY ---
 with col3:
     st.markdown('<div class="glass-panel">', unsafe_allow_html=True)
-    st.markdown("### ✅ Recently Served")
+    st.subheader("✅ Recently Served")
     
     if not st.session_state.history:
-        st.markdown("""
-        <div style="text-align:center; padding: 30px; color: #888;">
-            <div style="font-size: 3.5rem; opacity: 0.3; margin-bottom: 15px;">
-                <div style="background: linear-gradient(135deg, #667eea, #764ba2);
-                           -webkit-background-clip: text;
-                           -webkit-text-fill-color: transparent;">🎬</div>
+        st.caption("No customers served yet. Serve your first guest to see history here.")
+    
+    # Activity filter
+    show_all = st.checkbox("Show all history", value=False)
+    history_to_show = st.session_state.history[:15] if show_all else st.session_state.history[:5]
+    
+    for item in history_to_show:
+        vip_icon = "🌟" if item['is_vip'] else "👤"
+        vip_class = "history-vip" if item['is_vip'] else ""
+        
+        st.markdown(f"""
+        <div class="history-item {vip_class}">
+            <div style="font-weight:bold; color:#333; display:flex; justify-content:space-between;">
+                <span>#{item['id']} {item['name']} {vip_icon}</span>
+                <span style="font-size:0.8rem; color:#999;">{item['out_time']}</span>
             </div>
-            <p style="font-weight: 600; color: #764ba2;">No customers served yet</p>
-            <p style="font-size: 0.9rem; color: #999;">Serve customers to see history</p>
+            <div style="font-size:0.8rem; color:#666;">Ordered: {item['snack']}</div>
+            <div class="ai-msg">"{item['message']}"</div>
         </div>
         """, unsafe_allow_html=True)
-    else:
-        st.markdown('<div class="scrollable-container">', unsafe_allow_html=True)
-        for item in st.session_state.history[:8]:
-            vip_icon = "👑 " if item.get('is_vip', False) else ""
-            served_style = "background: linear-gradient(90deg, #FFD700, #FFA500);" if item.get('is_vip', False) else "background: linear-gradient(90deg, #667eea, #764ba2);"
-            
-            st.markdown(f"""
-            <div class="served-item">
-                <span style="font-size:1.5rem; margin-right:12px; 
-                    {'filter: drop-shadow(0 2px 3px rgba(255, 215, 0, 0.5));' if item.get('is_vip', False) else ''}">
-                    {item['avatar']}
-                </span>
-                <div style="flex-grow: 1;">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <div style="font-weight:bold; color:#444; font-size: 0.9rem;">
-                            {vip_icon}#{item['id']} {item['name']}
-                        </div>
-                        <div style="font-size:0.7rem; color:white; padding:3px 8px; border-radius:10px; {served_style}">
-                            Served
-                        </div>
-                    </div>
-                    <div style="font-size:0.75rem; color:#888; margin-top: 3px;">
-                        {item['served']}
-                    </div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        if len(st.session_state.history) > 8:
-            st.caption(f"Showing last 8 of {len(st.session_state.history)} served customers")
+    
+    if st.session_state.history and len(st.session_state.history) > 5 and not show_all:
+        st.caption(f"Showing 5 of {len(st.session_state.history)} records")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Additional Info Panel
+    st.markdown('<div class="glass-panel">', unsafe_allow_html=True)
+    st.subheader("ℹ️ Quick Info")
+    
+    api_status = "✅ Enabled" if get_api_key() and HAS_GENAI_LIB else "❌ Disabled"
+    next_ticket = st.session_state.queue[0]['name'] if st.session_state.queue else "None"
+    
+    st.markdown(f"""
+    <div style="font-size:0.9rem;">
+        <div style="margin-bottom:8px;">
+            <strong>AI Chat:</strong> {api_status}
+        </div>
+        <div style="margin-bottom:8px;">
+            <strong>Next to Serve:</strong> {next_ticket}
+        </div>
+        <div style="margin-bottom:8px;">
+            <strong>Current Theme:</strong> {st.session_state.current_theme}
+        </div>
+        <div>
+            <strong>System Status:</strong> 🟢 Operational
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     
     st.markdown('</div>', unsafe_allow_html=True)
 
-# Gradient Footer
+# --- 7. FOOTER ---
 st.markdown("""
-<div class="gradient-footer">
-    <div style="font-size: 1.2rem; font-weight: 800; margin-bottom: 5px;">
-        <span style="background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
-                     -webkit-background-clip: text;
-                     -webkit-text-fill-color: transparent;">
-            🎬 Cinema Queue System v3.0
-        </span>
-    </div>
-    <div style="font-size: 0.85rem; color: rgba(255,255,255,0.8);">
-        VIP Priority • Gradient UI • Auto-refresh • Live Updates
-    </div>
+<div style="text-align:center; margin-top:30px; padding:20px; color:rgba(255,255,255,0.7); font-size:0.8rem;">
+    <hr style="border-color:rgba(255,255,255,0.2); margin-bottom:15px;">
+    <p>🎬 Neon Cinema Live • Streamlit Demo • VIPs skip ahead! • Snacks served with AI charm</p>
+    <p><small>Add guests, serve them, and enjoy the AI-powered movie experience!</small></p>
 </div>
 """, unsafe_allow_html=True)
-
-st.markdown('</div>', unsafe_allow_html=True)  # Close main container
