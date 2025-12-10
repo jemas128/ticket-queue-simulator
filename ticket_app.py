@@ -16,22 +16,30 @@ THEMES = {
     "neon": { 
         "name": "Neon City", 
         "bg": "linear-gradient(-45deg, #FF3CAC, #784BA0, #2B86C5, #23d5ab)",
-        "accent": "#00f2fe"
+        "accent": "#00f2fe",
+        "button_color": "#FF3CAC",
+        "button_hover": "#FF0066"
     },
     "sunset": { 
         "name": "Sunset Strip", 
         "bg": "linear-gradient(-45deg, #FF512F, #DD2476, #F09819, #FF512F)",
-        "accent": "#FF512F"
+        "accent": "#FF512F",
+        "button_color": "#FF512F",
+        "button_hover": "#DD2476"
     },
     "ocean": { 
         "name": "Cyber Ocean", 
         "bg": "linear-gradient(-45deg, #00c6ff, #0072ff, #1cb5e0, #000046)",
-        "accent": "#00c6ff"
+        "accent": "#00c6ff",
+        "button_color": "#0072ff",
+        "button_hover": "#1cb5e0"
     },
     "forest": { 
         "name": "Toxic Jungle", 
         "bg": "linear-gradient(-45deg, #11998e, #38ef7d, #00b09b, #96c93d)",
-        "accent": "#38ef7d"
+        "accent": "#38ef7d",
+        "button_color": "#11998e",
+        "button_hover": "#38ef7d"
     },
 }
 
@@ -99,7 +107,7 @@ st.markdown(f"""
         margin-bottom: 0px;
     }}
     
-    /* BUTTONS */
+    /* CUSTOM COLORED BUTTONS */
     div.stButton > button {{
         width: 100%;
         border-radius: 12px;
@@ -107,13 +115,75 @@ st.markdown(f"""
         font-weight: 800;
         border: none;
         text-transform: uppercase;
-        transition: all 0.2s;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        color: white !important;
+        letter-spacing: 1px;
     }}
     
     div.stButton > button:hover {{
         transform: translateY(-3px);
-        box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+    }}
+
+    /* THEME BUTTONS */
+    .theme-button {{
+        background: linear-gradient(135deg, {current_theme_data['button_color']}, {current_theme_data['accent']}) !important;
+    }}
+    
+    .theme-button:hover {{
+        background: linear-gradient(135deg, {current_theme_data['button_hover']}, {current_theme_data['button_color']}) !important;
+    }}
+
+    /* ACTION BUTTONS */
+    .action-button {{
+        background: linear-gradient(135deg, #4A00E0, #8E2DE2) !important;
+    }}
+    
+    .action-button:hover {{
+        background: linear-gradient(135deg, #8E2DE2, #4A00E0) !important;
+    }}
+
+    /* VIP BUTTON */
+    .vip-button {{
+        background: linear-gradient(135deg, #FFD700, #FFA500) !important;
+        color: #8B4513 !important;
+        font-weight: 900 !important;
+    }}
+    
+    .vip-button:hover {{
+        background: linear-gradient(135deg, #FFA500, #FFD700) !important;
+    }}
+
+    /* PRIMARY BUTTON */
+    .primary-button {{
+        background: linear-gradient(135deg, #00b09b, #96c93d) !important;
+        font-size: 1.1rem !important;
+        height: 55px !important;
+    }}
+    
+    .primary-button:hover {{
+        background: linear-gradient(135deg, #96c93d, #00b09b) !important;
+    }}
+
+    /* RESET BUTTON */
+    .reset-button {{
+        background: linear-gradient(135deg, #FF416C, #FF4B2B) !important;
+        margin-top: 10px;
+        font-weight: 900 !important;
+    }}
+    
+    .reset-button:hover {{
+        background: linear-gradient(135deg, #FF4B2B, #FF416C) !important;
+    }}
+
+    /* ADD BUTTON */
+    .add-button {{
+        background: linear-gradient(135deg, #36D1DC, #5B86E5) !important;
+    }}
+    
+    .add-button:hover {{
+        background: linear-gradient(135deg, #5B86E5, #36D1DC) !important;
     }}
 
     /* TICKET CARDS */
@@ -238,6 +308,15 @@ def dequeue():
     person['cinema_msg'] = cinema_message
     st.session_state.history.insert(0, person)
 
+def reset_queue():
+    """Reset the entire queue and history"""
+    st.session_state.queue = []
+    st.session_state.history = []
+    # Reset ticket ID to start from 101 again
+    st.session_state.ticket_id = 101
+    # Keep current theme and VIP mode settings
+    st.success("Queue and history have been reset!")
+
 # --- 5. UI LAYOUT ---
 
 st.markdown('<div class="hero-title">🍿 POPCORN CINEMA</div>', unsafe_allow_html=True)
@@ -250,43 +329,67 @@ with col_ctrl:
     st.markdown('<div class="glass-panel">', unsafe_allow_html=True)
     st.markdown("### 🎨 Vibe Check")
     
-    # Theme Buttons - Fixed to use st.session_state
+    # Theme Buttons - COLORED
     c1, c2 = st.columns(2)
     with c1:
-        if st.button("Neon City"):
+        if st.button("🌃 Neon City", key="theme_neon"):
             st.session_state.current_theme = "neon"
             st.rerun()
-        if st.button("Cyber Ocean"):
+        if st.button("🌊 Cyber Ocean", key="theme_ocean"):
             st.session_state.current_theme = "ocean"
             st.rerun()
     with c2:
-        if st.button("Sunset Strip"):
+        if st.button("🌅 Sunset Strip", key="theme_sunset"):
             st.session_state.current_theme = "sunset"
             st.rerun()
-        if st.button("Toxic Jungle"):
+        if st.button("🌿 Toxic Jungle", key="theme_forest"):
             st.session_state.current_theme = "forest"
             st.rerun()
 
     st.markdown("---")
     st.markdown("### 🕹️ Actions")
     
-    # VIP Toggle
-    vip_label = "🌟 VIP ON" if st.session_state.vip_mode else "⚪ VIP OFF"
-    if st.button(vip_label):
+    # VIP Toggle - COLORED
+    vip_label = "🌟 VIP ON" if st.session_state.vip_mode else "👑 VIP OFF"
+    
+    # Apply VIP button styling
+    st.markdown('<style>div[data-testid="stButton"] button[kind="secondary"] {background: linear-gradient(135deg, #FFD700, #FFA500) !important; color: #8B4513 !important;}</style>', unsafe_allow_html=True)
+    
+    if st.button(vip_label, key="vip_toggle"):
         st.session_state.vip_mode = not st.session_state.vip_mode
         st.rerun()
 
-    # Add Button (Dynamic Label)
-    add_label = "Add VIP Guest" if st.session_state.vip_mode else "➕ Add Customer"
-    if st.button(add_label):
+    # Add Button - COLORED
+    add_label = "✨ Add VIP Guest" if st.session_state.vip_mode else "➕ Add Customer"
+    
+    # Apply Add button styling
+    st.markdown('<style>div[data-testid="stButton"] button[kind="secondary"]:nth-of-type(2) {background: linear-gradient(135deg, #36D1DC, #5B86E5) !important;}</style>', unsafe_allow_html=True)
+    
+    if st.button(add_label, key="add_customer"):
         enqueue()
         st.rerun()
     
     st.write("")
     
-    # Serve Button (Primary)
-    if st.button("🎟️ Serve Next", type="primary"):
+    # Serve Button - COLORED PRIMARY
+    serve_disabled = len(st.session_state.queue) == 0
+    serve_text = "🎟️ Serve Next Customer" if not serve_disabled else "⏳ Queue Empty"
+    
+    # Apply Primary button styling
+    st.markdown('<style>div[data-testid="stButton"] button[kind="primary"] {background: linear-gradient(135deg, #00b09b, #96c93d) !important;}</style>', unsafe_allow_html=True)
+    
+    if st.button(serve_text, key="serve_next", type="primary", disabled=serve_disabled):
         dequeue()
+        st.rerun()
+    
+    # Reset Button - COLORED RED
+    st.markdown("---")
+    
+    # Apply Reset button styling
+    st.markdown('<style>div[data-testid="stButton"] button[kind="secondary"]:nth-of-type(3) {background: linear-gradient(135deg, #FF416C, #FF4B2B) !important;}</style>', unsafe_allow_html=True)
+    
+    if st.button("🔄 Reset Queue & History", key="reset"):
+        reset_queue()
         st.rerun()
         
     st.markdown("---")
@@ -316,9 +419,14 @@ with col_queue:
             <div style="font-size: 4rem; opacity: 0.5;">💤</div>
             <h3>Lobby is Empty</h3>
             <p>Add customers to start the show!</p>
+            <div style="margin-top: 20px; font-size: 2rem; animation: bounce 2s infinite;">
+                👇
+            </div>
         </div>
         """, unsafe_allow_html=True)
     else:
+        st.markdown(f'<h3 style="color: white; margin-bottom: 15px;">🎬 Active Queue ({len(st.session_state.queue)} waiting)</h3>', unsafe_allow_html=True)
+        
         for index, ticket in enumerate(st.session_state.queue):
             is_first = (index == 0)
             status_text = "SERVING NOW" if is_first else f"WAITING #{index}"
@@ -347,16 +455,26 @@ with col_queue:
 # --- RIGHT: HISTORY ---
 with col_hist:
     st.markdown('<div class="glass-panel">', unsafe_allow_html=True)
-    st.markdown("### ✅ Served")
     
-    for item in st.session_state.history[:5]:
-        st.markdown(f"""
-        <div class="history-item">
-            <div style="font-weight:bold;">
-                #{item['id']} {item['name']} {item['avatar']}
-            </div>
-            <div class="ai-msg">"{item.get('cinema_msg', 'Enjoy the show!')}"</div>
+    history_count = len(st.session_state.history)
+    st.markdown(f"### ✅ Served ({history_count})")
+    
+    if not st.session_state.history:
+        st.markdown("""
+        <div style='text-align: center; padding: 30px; color: #666;'>
+            <div style='font-size: 3rem; opacity: 0.5;'>📝</div>
+            <p>No customers served yet</p>
         </div>
         """, unsafe_allow_html=True)
+    else:
+        for item in st.session_state.history[:8]:  # Show more history
+            st.markdown(f"""
+            <div class="history-item">
+                <div style="font-weight:bold;">
+                    #{item['id']} {item['name']} {item['avatar']}
+                </div>
+                <div class="ai-msg">"{item.get('cinema_msg', 'Enjoy the show!')}"</div>
+            </div>
+            """, unsafe_allow_html=True)
         
     st.markdown('</div>', unsafe_allow_html=True)
