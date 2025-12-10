@@ -17,28 +17,28 @@ THEMES = {
         "name": "Neon City", 
         "bg": "linear-gradient(-45deg, #FF3CAC, #784BA0, #2B86C5, #23d5ab)",
         "accent": "#00f2fe",
-        "button_color": "#FF3CAC",
+        "button_bg": "#FF3CAC",
         "button_hover": "#FF0066"
     },
     "sunset": { 
         "name": "Sunset Strip", 
         "bg": "linear-gradient(-45deg, #FF512F, #DD2476, #F09819, #FF512F)",
         "accent": "#FF512F",
-        "button_color": "#FF512F",
+        "button_bg": "#FF512F",
         "button_hover": "#DD2476"
     },
     "ocean": { 
         "name": "Cyber Ocean", 
         "bg": "linear-gradient(-45deg, #00c6ff, #0072ff, #1cb5e0, #000046)",
         "accent": "#00c6ff",
-        "button_color": "#0072ff",
+        "button_bg": "#0072ff",
         "button_hover": "#1cb5e0"
     },
     "forest": { 
         "name": "Toxic Jungle", 
         "bg": "linear-gradient(-45deg, #11998e, #38ef7d, #00b09b, #96c93d)",
         "accent": "#38ef7d",
-        "button_color": "#11998e",
+        "button_bg": "#11998e",
         "button_hover": "#38ef7d"
     },
 }
@@ -107,7 +107,7 @@ st.markdown(f"""
         margin-bottom: 0px;
     }}
     
-    /* CUSTOM COLORED BUTTONS */
+    /* BASE BUTTON STYLES */
     div.stButton > button {{
         width: 100%;
         border-radius: 12px;
@@ -115,75 +115,104 @@ st.markdown(f"""
         font-weight: 800;
         border: none;
         text-transform: uppercase;
-        transition: all 0.3s ease;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         color: white !important;
         letter-spacing: 1px;
+        position: relative;
+        overflow: hidden;
     }}
     
     div.stButton > button:hover {{
-        transform: translateY(-3px);
-        box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+        transform: translateY(-4px) scale(1.02);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.3);
     }}
 
-    /* THEME BUTTONS */
+    div.stButton > button:active {{
+        transform: translateY(-2px);
+    }}
+
+    /* BUTTON HOVER GLOW EFFECT */
+    div.stButton > button::after {{
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+        transition: 0.5s;
+    }}
+
+    div.stButton > button:hover::after {{
+        left: 100%;
+    }}
+
+    /* THEME BUTTONS - BLUE/PURPLE */
     .theme-button {{
-        background: linear-gradient(135deg, {current_theme_data['button_color']}, {current_theme_data['accent']}) !important;
+        background: linear-gradient(135deg, {current_theme_data['button_bg']}, {current_theme_data['accent']}) !important;
+        border: 2px solid rgba(255, 255, 255, 0.3) !important;
     }}
     
     .theme-button:hover {{
-        background: linear-gradient(135deg, {current_theme_data['button_hover']}, {current_theme_data['button_color']}) !important;
+        background: linear-gradient(135deg, {current_theme_data['button_hover']}, {current_theme_data['button_bg']}) !important;
+        border: 2px solid rgba(255, 255, 255, 0.5) !important;
+        box-shadow: 0 0 20px {current_theme_data['accent']}80 !important;
     }}
 
-    /* ACTION BUTTONS */
-    .action-button {{
-        background: linear-gradient(135deg, #4A00E0, #8E2DE2) !important;
-    }}
-    
-    .action-button:hover {{
-        background: linear-gradient(135deg, #8E2DE2, #4A00E0) !important;
-    }}
-
-    /* VIP BUTTON */
+    /* VIP BUTTON - GOLD/YELLOW */
     .vip-button {{
         background: linear-gradient(135deg, #FFD700, #FFA500) !important;
         color: #8B4513 !important;
         font-weight: 900 !important;
+        border: 2px solid #FFD700 !important;
     }}
     
     .vip-button:hover {{
         background: linear-gradient(135deg, #FFA500, #FFD700) !important;
+        color: #8B4513 !important;
+        box-shadow: 0 0 20px #FFD70080 !important;
+        border: 2px solid #FFA500 !important;
     }}
 
-    /* PRIMARY BUTTON */
-    .primary-button {{
+    /* ADD BUTTON - TEAL/BLUE */
+    .add-button {{
+        background: linear-gradient(135deg, #00C9FF, #92FE9D) !important;
+        border: 2px solid #00C9FF !important;
+    }}
+    
+    .add-button:hover {{
+        background: linear-gradient(135deg, #92FE9D, #00C9FF) !important;
+        box-shadow: 0 0 20px #00C9FF80 !important;
+        border: 2px solid #92FE9D !important;
+    }}
+
+    /* SERVE BUTTON - GREEN */
+    .serve-button {{
         background: linear-gradient(135deg, #00b09b, #96c93d) !important;
         font-size: 1.1rem !important;
         height: 55px !important;
+        border: 2px solid #00b09b !important;
     }}
     
-    .primary-button:hover {{
+    .serve-button:hover {{
         background: linear-gradient(135deg, #96c93d, #00b09b) !important;
+        box-shadow: 0 0 20px #96c93d80 !important;
+        border: 2px solid #96c93d !important;
     }}
 
-    /* RESET BUTTON */
+    /* RESET BUTTON - RED/PINK */
     .reset-button {{
         background: linear-gradient(135deg, #FF416C, #FF4B2B) !important;
         margin-top: 10px;
         font-weight: 900 !important;
+        border: 2px solid #FF416C !important;
     }}
     
     .reset-button:hover {{
         background: linear-gradient(135deg, #FF4B2B, #FF416C) !important;
-    }}
-
-    /* ADD BUTTON */
-    .add-button {{
-        background: linear-gradient(135deg, #36D1DC, #5B86E5) !important;
-    }}
-    
-    .add-button:hover {{
-        background: linear-gradient(135deg, #5B86E5, #36D1DC) !important;
+        box-shadow: 0 0 20px #FF416C80 !important;
+        border: 2px solid #FF4B2B !important;
     }}
 
     /* TICKET CARDS */
@@ -329,66 +358,121 @@ with col_ctrl:
     st.markdown('<div class="glass-panel">', unsafe_allow_html=True)
     st.markdown("### 🎨 Vibe Check")
     
-    # Theme Buttons - COLORED
+    # Theme Buttons - BLUE/PURPLE
     c1, c2 = st.columns(2)
     with c1:
-        if st.button("🌃 Neon City", key="theme_neon"):
+        if st.button("🌃 Neon City", key="theme_neon", use_container_width=True):
             st.session_state.current_theme = "neon"
             st.rerun()
-        if st.button("🌊 Cyber Ocean", key="theme_ocean"):
+        if st.button("🌊 Cyber Ocean", key="theme_ocean", use_container_width=True):
             st.session_state.current_theme = "ocean"
             st.rerun()
     with c2:
-        if st.button("🌅 Sunset Strip", key="theme_sunset"):
+        if st.button("🌅 Sunset Strip", key="theme_sunset", use_container_width=True):
             st.session_state.current_theme = "sunset"
             st.rerun()
-        if st.button("🌿 Toxic Jungle", key="theme_forest"):
+        if st.button("🌿 Toxic Jungle", key="theme_forest", use_container_width=True):
             st.session_state.current_theme = "forest"
             st.rerun()
 
     st.markdown("---")
     st.markdown("### 🕹️ Actions")
     
-    # VIP Toggle - COLORED
+    # VIP Toggle - GOLD/YELLOW
     vip_label = "🌟 VIP ON" if st.session_state.vip_mode else "👑 VIP OFF"
     
-    # Apply VIP button styling
-    st.markdown('<style>div[data-testid="stButton"] button[kind="secondary"] {background: linear-gradient(135deg, #FFD700, #FFA500) !important; color: #8B4513 !important;}</style>', unsafe_allow_html=True)
+    # Apply custom styling to VIP button
+    st.markdown(f"""
+    <style>
+        div[data-testid="stButton"] button[kind="secondary"]:first-of-type {{
+            background: linear-gradient(135deg, #FFD700, #FFA500) !important;
+            color: #8B4513 !important;
+            border: 2px solid #FFD700 !important;
+        }}
+        div[data-testid="stButton"] button[kind="secondary"]:first-of-type:hover {{
+            background: linear-gradient(135deg, #FFA500, #FFD700) !important;
+            box-shadow: 0 0 20px #FFD70080 !important;
+            border: 2px solid #FFA500 !important;
+        }}
+    </style>
+    """, unsafe_allow_html=True)
     
-    if st.button(vip_label, key="vip_toggle"):
+    if st.button(vip_label, key="vip_toggle", use_container_width=True):
         st.session_state.vip_mode = not st.session_state.vip_mode
         st.rerun()
 
-    # Add Button - COLORED
+    # Add Button - TEAL/BLUE
     add_label = "✨ Add VIP Guest" if st.session_state.vip_mode else "➕ Add Customer"
     
-    # Apply Add button styling
-    st.markdown('<style>div[data-testid="stButton"] button[kind="secondary"]:nth-of-type(2) {background: linear-gradient(135deg, #36D1DC, #5B86E5) !important;}</style>', unsafe_allow_html=True)
+    # Apply custom styling to Add button
+    st.markdown(f"""
+    <style>
+        div[data-testid="stButton"] button[kind="secondary"]:nth-of-type(2) {{
+            background: linear-gradient(135deg, #00C9FF, #92FE9D) !important;
+            border: 2px solid #00C9FF !important;
+        }}
+        div[data-testid="stButton"] button[kind="secondary"]:nth-of-type(2):hover {{
+            background: linear-gradient(135deg, #92FE9D, #00C9FF) !important;
+            box-shadow: 0 0 20px #00C9FF80 !important;
+            border: 2px solid #92FE9D !important;
+        }}
+    </style>
+    """, unsafe_allow_html=True)
     
-    if st.button(add_label, key="add_customer"):
+    if st.button(add_label, key="add_customer", use_container_width=True):
         enqueue()
         st.rerun()
     
     st.write("")
     
-    # Serve Button - COLORED PRIMARY
+    # Serve Button - GREEN
     serve_disabled = len(st.session_state.queue) == 0
     serve_text = "🎟️ Serve Next Customer" if not serve_disabled else "⏳ Queue Empty"
     
-    # Apply Primary button styling
-    st.markdown('<style>div[data-testid="stButton"] button[kind="primary"] {background: linear-gradient(135deg, #00b09b, #96c93d) !important;}</style>', unsafe_allow_html=True)
+    # Apply custom styling to Serve button
+    st.markdown(f"""
+    <style>
+        div[data-testid="stButton"] button[kind="primary"] {{
+            background: linear-gradient(135deg, #00b09b, #96c93d) !important;
+            border: 2px solid #00b09b !important;
+            height: 55px !important;
+        }}
+        div[data-testid="stButton"] button[kind="primary"]:hover {{
+            background: linear-gradient(135deg, #96c93d, #00b09b) !important;
+            box-shadow: 0 0 20px #96c93d80 !important;
+            border: 2px solid #96c93d !important;
+        }}
+        div[data-testid="stButton"] button[kind="primary"]:disabled {{
+            opacity: 0.6;
+            cursor: not-allowed;
+        }}
+    </style>
+    """, unsafe_allow_html=True)
     
-    if st.button(serve_text, key="serve_next", type="primary", disabled=serve_disabled):
+    if st.button(serve_text, key="serve_next", type="primary", disabled=serve_disabled, use_container_width=True):
         dequeue()
         st.rerun()
     
-    # Reset Button - COLORED RED
+    # Reset Button - RED/PINK
     st.markdown("---")
     
-    # Apply Reset button styling
-    st.markdown('<style>div[data-testid="stButton"] button[kind="secondary"]:nth-of-type(3) {background: linear-gradient(135deg, #FF416C, #FF4B2B) !important;}</style>', unsafe_allow_html=True)
+    # Apply custom styling to Reset button
+    st.markdown(f"""
+    <style>
+        div[data-testid="stButton"] button[kind="secondary"]:nth-of-type(3) {{
+            background: linear-gradient(135deg, #FF416C, #FF4B2B) !important;
+            border: 2px solid #FF416C !important;
+            font-weight: 900 !important;
+        }}
+        div[data-testid="stButton"] button[kind="secondary"]:nth-of-type(3):hover {{
+            background: linear-gradient(135deg, #FF4B2B, #FF416C) !important;
+            box-shadow: 0 0 20px #FF416C80 !important;
+            border: 2px solid #FF4B2B !important;
+        }}
+    </style>
+    """, unsafe_allow_html=True)
     
-    if st.button("🔄 Reset Queue & History", key="reset"):
+    if st.button("🔄 Reset Queue & History", key="reset", use_container_width=True):
         reset_queue()
         st.rerun()
         
