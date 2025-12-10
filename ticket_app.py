@@ -1,882 +1,569 @@
 import streamlit as st
+import time
 import random
 from datetime import datetime
-import os
 
-# Try to import Google GenAI
-try:
-    from google import genai
-    HAS_GENAI_LIB = True
-except ImportError:
-    HAS_GENAI_LIB = False
+# --- 1. CONFIGURATION & STYLING ---
+st.set_page_config(page_title="Cinema Queue Simulator", page_icon="🎬", layout="wide")
 
-# --- 1. PAGE SETUP ---
-st.set_page_config(
-    page_title="Neon Cinema Live", 
-    page_icon="🎬", 
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
+# Initialize theme in session state
+if 'theme' not in st.session_state:
+    st.session_state.theme = 'dark'
 
-# --- 2. CONFIGURATION & STATE ---
-THEMES = {
-    "Neon City": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-    "Sunset Strip": "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
-    "Toxic Jungle": "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
-}
-
-if 'queue' not in st.session_state: st.session_state.queue = []
-if 'history' not in st.session_state: st.session_state.history = []
-if 'ticket_id' not in st.session_state: st.session_state.ticket_id = 101
-if 'vip_mode' not in st.session_state: st.session_state.vip_mode = False
-if 'current_theme' not in st.session_state: st.session_state.current_theme = "Neon City"
-
-# --- 3. PROFESSIONAL UI DESIGN CSS ---
-theme_bg = THEMES[st.session_state.current_theme]
-
+# Custom CSS with gradient, animations, and theme switching
 st.markdown(f"""
 <style>
-    /* RESET & BASE */
+    /* Base Theme Variables */
+    :root {{
+        --primary-color: #ff4b4b;
+        --secondary-color: #4CAF50;
+        --accent-color: #FFD700;
+        --bg-gradient-start: {'#0f0c29' if st.session_state.theme == 'dark' else '#F8F9FA'};
+        --bg-gradient-end: {'#302b63' if st.session_state.theme == 'dark' else '#E9ECEF'};
+        --card-bg: {'#262730' if st.session_state.theme == 'dark' else '#FFFFFF'};
+        --text-color: {'#FFFFFF' if st.session_state.theme == 'dark' else '#000000'};
+        --border-color: {'#444' if st.session_state.theme == 'dark' else '#ddd'};
+    }}
+    
+    /* Main Background with Gradient */
     .stApp {{
-        background: {theme_bg};
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        min-height: 100vh;
+        background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
+        background-attachment: fixed;
+        color: var(--text-color);
+        transition: all 0.5s ease;
     }}
     
-    /* HIDE DEFAULTS */
-    header {{display: none !important;}}
-    footer {{display: none !important;}}
-    .stDeployButton {{display: none !important;}}
-    .main .block-container {{
-        padding-top: 1rem;
-        padding-bottom: 0.5rem;
-        max-width: 1200px;
+    /* Animated Header */
+    @keyframes glow {{
+        0%, 100% {{ text-shadow: 0 0 10px var(--primary-color); }}
+        50% {{ text-shadow: 0 0 20px var(--primary-color), 0 0 30px var(--primary-color); }}
     }}
     
-    /* HEADER */
-    .cinema-header {{
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(10px);
-        border-radius: 16px;
-        padding: 1rem 1.5rem;
-        margin-bottom: 1rem;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-    }}
-    
-    .header-title {{
-        font-size: 1.8rem;
-        font-weight: 800;
-        color: #2D3748;
-        margin: 0;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }}
-    
-    .header-subtitle {{
-        font-size: 0.85rem;
-        color: #718096;
-        margin: 0.25rem 0 0 0;
-        font-weight: 500;
-    }}
-    
-    /* MAIN LAYOUT CONTAINERS */
-    .main-grid {{
-        display: grid;
-        grid-template-columns: 320px 1fr 320px;
-        gap: 1rem;
-        height: calc(100vh - 140px);
-    }}
-    
-    .panel {{
-        background: white;
-        border-radius: 16px;
-        padding: 1.25rem;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
-        border: 1px solid #E2E8F0;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-    }}
-    
-    .panel-header {{
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1rem;
-        padding-bottom: 0.75rem;
-        border-bottom: 2px solid #F7FAFC;
-    }}
-    
-    .panel-title {{
-        font-size: 1rem;
-        font-weight: 700;
-        color: #2D3748;
-        margin: 0;
-    }}
-    
-    .badge {{
-        background: #EDF2F7;
-        color: #4A5568;
-        padding: 0.25rem 0.75rem;
-        border-radius: 12px;
-        font-size: 0.75rem;
-        font-weight: 600;
-    }}
-    
-    /* LEFT PANEL - CONTROLS */
-    .control-section {{
-        margin-bottom: 1.25rem;
-    }}
-    
-    .section-title {{
-        font-size: 0.875rem;
-        font-weight: 600;
-        color: #4A5568;
-        margin-bottom: 0.75rem;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }}
-    
-    /* THEME SELECTOR */
-    .theme-option {{
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.75rem;
-        border-radius: 12px;
-        background: #F7FAFC;
-        border: 2px solid transparent;
-        cursor: pointer;
-        transition: all 0.2s;
-        margin-bottom: 0.5rem;
-        width: 100%;
-    }}
-    
-    .theme-option:hover {{
-        border-color: #CBD5E0;
-    }}
-    
-    .theme-option.active {{
-        border-color: #4299E1;
-        background: #EBF8FF;
-    }}
-    
-    .theme-preview {{
-        width: 24px;
-        height: 24px;
-        border-radius: 6px;
-        background: var(--theme-color);
-    }}
-    
-    /* TOGGLE SWITCH */
-    .toggle-container {{
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        background: #F7FAFC;
-        padding: 0.75rem 1rem;
-        border-radius: 12px;
-        margin-bottom: 0.75rem;
-    }}
-    
-    .toggle-label {{
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-weight: 600;
-        color: #2D3748;
-    }}
-    
-    .toggle-switch {{
-        position: relative;
-        width: 44px;
-        height: 24px;
-    }}
-    
-    .toggle-slider {{
-        position: absolute;
-        cursor: pointer;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: #CBD5E0;
-        transition: .4s;
-        border-radius: 24px;
-    }}
-    
-    .toggle-slider:before {{
-        position: absolute;
-        content: "";
-        height: 16px;
-        width: 16px;
-        left: 4px;
-        bottom: 4px;
-        background-color: white;
-        transition: .4s;
-        border-radius: 50%;
-    }}
-    
-    input:checked + .toggle-slider {{
-        background-color: #4299E1;
-    }}
-    
-    input:checked + .toggle-slider:before {{
-        transform: translateX(20px);
-    }}
-    
-    /* BUTTONS */
-    .action-button {{
-        width: 100%;
-        padding: 0.875rem;
-        border: none;
-        border-radius: 12px;
-        font-weight: 600;
-        font-size: 0.875rem;
-        cursor: pointer;
-        transition: all 0.2s;
-        margin-bottom: 0.75rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.5rem;
-    }}
-    
-    .btn-primary {{
-        background: #4299E1;
-        color: white;
-    }}
-    
-    .btn-primary:hover {{
-        background: #3182CE;
-        transform: translateY(-1px);
-    }}
-    
-    .btn-success {{
-        background: #38A169;
-        color: white;
-    }}
-    
-    .btn-success:hover {{
-        background: #2F855A;
-        transform: translateY(-1px);
-    }}
-    
-    .btn-warning {{
-        background: #ED8936;
-        color: white;
-    }}
-    
-    .btn-warning:hover {{
-        background: #DD6B20;
-        transform: translateY(-1px);
-    }}
-    
-    .btn-danger {{
-        background: #F56565;
-        color: white;
-    }}
-    
-    .btn-danger:hover {{
-        background: #E53E3E;
-        transform: translateY(-1px);
-    }}
-    
-    .btn-vip {{
-        background: linear-gradient(135deg, #D69E2E, #ECC94B);
-        color: #744210;
-    }}
-    
-    .btn-vip:hover {{
-        background: linear-gradient(135deg, #B7791F, #D69E2E);
-    }}
-    
-    /* STATS GRID */
-    .stats-grid {{
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 0.75rem;
-        margin-top: auto;
-    }}
-    
-    .stat-card {{
-        background: #F7FAFC;
-        border-radius: 12px;
-        padding: 1rem;
+    .animated-header {{
+        animation: glow 2s infinite;
         text-align: center;
+        padding: 20px;
+        background: linear-gradient(45deg, 
+            {'rgba(255, 75, 75, 0.1)' if st.session_state.theme == 'dark' else 'rgba(255, 75, 75, 0.05)'}, 
+            {'rgba(76, 175, 80, 0.1)' if st.session_state.theme == 'dark' else 'rgba(76, 175, 80, 0.05)'});
+        border-radius: 20px;
+        margin-bottom: 30px;
+        border: 2px solid {'rgba(255, 75, 75, 0.3)' if st.session_state.theme == 'dark' else 'rgba(255, 75, 75, 0.1)'};
     }}
     
-    .stat-value {{
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: #2D3748;
-        line-height: 1;
-    }}
-    
-    .stat-label {{
-        font-size: 0.75rem;
-        color: #718096;
-        margin-top: 0.25rem;
-    }}
-    
-    /* CENTER PANEL - QUEUE */
-    .queue-container {{
-        flex: 1;
-        overflow-y: auto;
-        padding-right: 0.5rem;
-        margin-top: 0.5rem;
-    }}
-    
-    .queue-container::-webkit-scrollbar {{
-        width: 6px;
-    }}
-    
-    .queue-container::-webkit-scrollbar-track {{
-        background: #F7FAFC;
-        border-radius: 3px;
-    }}
-    
-    .queue-container::-webkit-scrollbar-thumb {{
-        background: #CBD5E0;
-        border-radius: 3px;
-    }}
-    
+    /* Enhanced Ticket Cards */
     .ticket-card {{
-        background: white;
-        border: 1px solid #E2E8F0;
-        border-radius: 12px;
-        padding: 1rem;
-        margin-bottom: 0.75rem;
-        transition: all 0.2s;
-        animation: slideIn 0.3s ease-out;
+        background: var(--card-bg);
+        border: 3px solid var(--primary-color);
+        border-radius: 15px;
+        padding: 15px;
+        margin: 10px;
+        text-align: center;
+        box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
     }}
     
-    @keyframes slideIn {{
-        from {{ opacity: 0; transform: translateX(-10px); }}
-        to {{ opacity: 1; transform: translateX(0); }}
-    }}
-    
-    .ticket-card.active {{
-        border-color: #4299E1;
-        background: linear-gradient(135deg, #EBF8FF, #FFFFFF);
-        box-shadow: 0 4px 12px rgba(66, 153, 225, 0.15);
+    .ticket-card:hover {{
+        transform: translateY(-5px);
+        box-shadow: 0 15px 30px rgba(255, 75, 75, 0.3);
     }}
     
     .ticket-card.vip {{
-        border-color: #D69E2E;
-        background: linear-gradient(135deg, #FEFCBF, #FFFFFF);
+        background: linear-gradient(45deg, #FFD700, #FFA500);
+        border: 3px solid #FFD700;
+        color: #000;
     }}
     
-    .ticket-header {{
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 0.5rem;
+    .ticket-card.vip .ticket-number {{
+        color: #B8860B;
     }}
     
-    .ticket-id {{
-        font-size: 0.75rem;
-        color: #718096;
-        font-weight: 600;
-    }}
-    
-    .ticket-status {{
-        font-size: 0.75rem;
-        font-weight: 700;
-        padding: 0.25rem 0.75rem;
-        border-radius: 12px;
-        background: #E2E8F0;
-        color: #4A5568;
-    }}
-    
-    .ticket-status.active {{
-        background: #4299E1;
-        color: white;
-    }}
-    
-    .ticket-content {{
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-    }}
-    
-    .ticket-avatar {{
-        font-size: 2rem;
-    }}
-    
-    .ticket-info {{
-        flex: 1;
+    .ticket-number {{
+        font-size: 24px;
+        font-weight: bold;
+        color: var(--primary-color);
+        margin: 10px 0;
     }}
     
     .ticket-name {{
-        font-weight: 700;
-        color: #2D3748;
-        margin-bottom: 0.25rem;
-    }}
-    
-    .ticket-details {{
-        display: flex;
-        gap: 1rem;
-        font-size: 0.875rem;
-        color: #718096;
+        font-size: 16px;
+        font-weight: 500;
     }}
     
     .vip-badge {{
-        background: #FEFCBF;
-        color: #744210;
-        padding: 0.25rem 0.75rem;
-        border-radius: 12px;
-        font-size: 0.75rem;
-        font-weight: 700;
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: #FFD700;
+        color: #000;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 10px;
+        font-weight: bold;
     }}
     
-    .empty-state {{
+    /* Current Serving Display */
+    .current-serving {{
+        background: linear-gradient(45deg, 
+            {'rgba(209, 255, 189, 0.9)' if st.session_state.theme == 'dark' else 'rgba(209, 255, 189, 0.95)'}, 
+            {'rgba(76, 175, 80, 0.9)' if st.session_state.theme == 'dark' else 'rgba(76, 175, 80, 0.95)'});
+        color: #1a4a1a;
+        padding: 25px;
+        border-radius: 15px;
         text-align: center;
-        padding: 3rem 1rem;
-        color: #A0AEC0;
+        border: 3px dashed #4CAF50;
+        margin-bottom: 20px;
+        font-size: 1.2em;
+        box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
     }}
     
-    .empty-icon {{
-        font-size: 3rem;
-        margin-bottom: 1rem;
-        opacity: 0.5;
+    /* Enhanced Buttons */
+    .stButton>button {{
+        width: 100%;
+        border-radius: 15px;
+        height: 3.5em;
+        font-weight: bold;
+        font-size: 1.1em;
+        margin: 5px 0;
+        transition: all 0.3s ease;
+        border: none;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }}
     
-    /* RIGHT PANEL - HISTORY */
-    .history-container {{
-        flex: 1;
-        overflow-y: auto;
-        padding-right: 0.5rem;
+    .stButton>button:hover {{
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0,0,0,0.2);
     }}
     
-    .history-item {{
-        padding: 1rem;
-        border-bottom: 1px solid #E2E8F0;
+    .primary-button {{
+        background: linear-gradient(45deg, #FF4B4B, #FF6B6B);
+        color: white;
     }}
     
-    .history-header {{
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 0.5rem;
+    .vip-button {{
+        background: linear-gradient(45deg, #FFD700, #FFA500);
+        color: #000;
+        font-weight: bold;
     }}
     
-    .history-name {{
-        font-weight: 600;
-        color: #2D3748;
+    .secondary-button {{
+        background: linear-gradient(45deg, #4CAF50, #66BB6A);
+        color: white;
     }}
     
-    .history-time {{
-        font-size: 0.75rem;
-        color: #718096;
+    .theme-button {{
+        background: linear-gradient(45deg, #6C63FF, #9A94FF);
+        color: white;
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1000;
+        width: auto !important;
+        padding: 10px 20px;
     }}
     
-    .history-details {{
-        font-size: 0.875rem;
-        color: #718096;
-        margin-bottom: 0.5rem;
-    }}
-    
-    .history-message {{
-        font-style: italic;
-        color: #4A5568;
-        font-size: 0.875rem;
-        padding: 0.5rem;
-        background: #F7FAFC;
-        border-radius: 8px;
-        border-left: 3px solid #4299E1;
-    }}
-    
-    /* STATUS BAR */
-    .status-bar {{
-        background: rgba(255, 255, 255, 0.9);
+    /* Control Panel Styling */
+    .control-panel {{
+        background: {'rgba(38, 39, 48, 0.8)' if st.session_state.theme == 'dark' else 'rgba(255, 255, 255, 0.8)'};
+        padding: 25px;
+        border-radius: 20px;
+        border: 2px solid var(--primary-color);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         backdrop-filter: blur(10px);
-        border-radius: 12px;
-        padding: 0.75rem 1rem;
-        margin-top: 1rem;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        font-size: 0.875rem;
     }}
     
-    .status-item {{
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
+    /* Queue Counter */
+    .queue-counter {{
+        background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+        color: white;
+        padding: 10px 20px;
+        border-radius: 50px;
+        font-size: 1.2em;
+        font-weight: bold;
+        display: inline-block;
+        margin: 10px 0;
+        animation: pulse 2s infinite;
     }}
     
-    /* HIDE STREAMLIT RADIO/DROPDOWN */
-    .stRadio > div {{
-        display: none;
+    @keyframes pulse {{
+        0% {{ transform: scale(1); }}
+        50% {{ transform: scale(1.05); }}
+        100% {{ transform: scale(1); }}
     }}
     
-    .stSelectbox > div {{
-        display: none;
+    /* History Cards */
+    .history-card {{
+        background: {'rgba(38, 39, 48, 0.6)' if st.session_state.theme == 'dark' else 'rgba(255, 255, 255, 0.6)'};
+        padding: 15px;
+        margin: 10px 0;
+        border-radius: 10px;
+        border-left: 5px solid var(--secondary-color);
+        transition: all 0.3s ease;
     }}
     
-    input[type="checkbox"] {{
-        display: none;
+    .history-card:hover {{
+        transform: translateX(5px);
+        background: {'rgba(38, 39, 48, 0.8)' if st.session_state.theme == 'dark' else 'rgba(255, 255, 255, 0.8)'};
+    }}
+    
+    /* Status Indicator */
+    .status-indicator {{
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-right: 10px;
+        animation: blink 1s infinite;
+    }}
+    
+    .status-active {{
+        background-color: #4CAF50;
+    }}
+    
+    @keyframes blink {{
+        0%, 100% {{ opacity: 1; }}
+        50% {{ opacity: 0.5; }}
     }}
 </style>
 """, unsafe_allow_html=True)
 
-# --- 4. HELPER FUNCTIONS ---
+# --- 2. SESSION STATE (The Memory) ---
+if 'queue' not in st.session_state:
+    st.session_state.queue = []
 
-def get_api_key():
-    """Get API key from multiple sources"""
-    if "API_KEY" in st.secrets:
-        return st.secrets["API_KEY"]
-    elif "GOOGLE_API_KEY" in os.environ:
-        return os.environ["GOOGLE_API_KEY"]
-    return None
+if 'history' not in st.session_state:
+    st.session_state.history = []
 
-def get_random_data():
-    names = ["Alex Morgan", "Taylor Kim", "Jordan Lee", "Casey Smith", "Riley Jones", "Morgan Chen"]
-    avatars = ["👤", "🎭", "🌟", "👑", "🎩", "🕶️"]
-    snacks = ["🍿 Popcorn", "🥤 Large Soda", "🍫 Candy Box", "🌭 Hot Dog", "🥨 Pretzel", "🍦 Ice Cream"]
-    return random.choice(names), random.choice(avatars), random.choice(snacks)
+if 'ticket_id' not in st.session_state:
+    st.session_state.ticket_id = 100
 
-def get_ai_message(name, snack, theme):
-    """Generate welcome message"""
-    api_key = get_api_key()
+if 'last_action' not in st.session_state:
+    st.session_state.last_action = "Welcome! Queue is empty."
+
+# --- 3. HELPER FUNCTIONS ---
+
+def generate_random_person(is_vip=False):
+    names = ["Alice", "Bob", "Charlie", "Diana", "Ethan", "Fiona", "George", "Hannah", 
+             "Ian", "Julia", "Kevin", "Luna", "Mike", "Nina", "Oscar", "Paula"]
+    emojis = ["👱", "👵", "👮", "🧑‍💻", "🧟", "🧛", "🧙", "🦸", "👨‍🚀", "👩‍🎤", "🕵️", "👩‍🍳", "🧑‍🎨", "👨‍🔬"]
     
-    if not api_key or not HAS_GENAI_LIB:
-        fallbacks = [
-            f"Enjoy the show, {name.split()[0]}!",
-            f"Your {snack} is ready!",
-            "Lights, camera, action!",
-            f"Welcome to Neon Cinema!",
-            "Enjoy your movie! 🎬"
-        ]
-        return random.choice(fallbacks)
+    if is_vip:
+        names = ["Mr. Smith", "Madame X", "Sir Reginald", "Lady Aurora", "Count Dracula", 
+                "Professor X", "Agent 007", "Queen Bee"]
+        emojis = ["👑", "🎩", "💎", "🌟", "⭐", "✨", "💼", "🕶️"]
     
-    try:
-        client = genai.Client(api_key=api_key)
-        prompt = f"Very brief (max 5 words) cinema welcome for {name}. They ordered {snack}."
-        response = client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
-        return response.text.strip()
-    except:
-        return f"Welcome, {name.split()[0]}!"
-
-def enqueue():
-    name, avatar, snack = get_random_data()
-    is_vip = st.session_state.vip_mode
-    
-    new_ticket = {
+    return {
+        "name": random.choice(names),
+        "avatar": random.choice(emojis),
         "id": st.session_state.ticket_id,
-        "name": name,
-        "avatar": avatar,
-        "snack": snack,
-        "joined": datetime.now().strftime("%I:%M %p"),
+        "time": datetime.now().strftime("%H:%M:%S"),
         "is_vip": is_vip
     }
+
+def enqueue_person(is_vip=False):
+    person = generate_random_person(is_vip)
+    
+    if is_vip:
+        # Insert VIP at the front of the queue (after any other VIPs)
+        vip_positions = [i for i, p in enumerate(st.session_state.queue) if p.get('is_vip', False)]
+        if vip_positions:
+            insert_position = vip_positions[-1] + 1
+        else:
+            insert_position = 0
+        st.session_state.queue.insert(insert_position, person)
+        st.session_state.last_action = f"⭐ **VIP** Ticket #{person['id']} ({person['name']}) joined with priority!"
+    else:
+        st.session_state.queue.append(person)
+        st.session_state.last_action = f"✅ Ticket #{person['id']} ({person['name']}) joined the line."
     
     st.session_state.ticket_id += 1
-    
-    if is_vip and len(st.session_state.queue) > 0:
-        st.session_state.queue.insert(1, new_ticket)
+
+def dequeue_person():
+    if len(st.session_state.queue) > 0:
+        person = st.session_state.queue.pop(0)
+        st.session_state.history.insert(0, person)
+        status = "⭐ **VIP SERVED**" if person.get('is_vip', False) else "🎟️ Serving"
+        st.session_state.last_action = f"{status} Ticket #{person['id']} ({person['name']})..."
     else:
-        st.session_state.queue.append(new_ticket)
-        
-    st.session_state.vip_mode = False
+        st.session_state.last_action = "⚠️ The queue is empty!"
 
-def dequeue():
-    if not st.session_state.queue:
-        return None
+def toggle_theme():
+    st.session_state.theme = 'light' if st.session_state.theme == 'dark' else 'dark'
 
-    person = st.session_state.queue.pop(0)
-    msg = get_ai_message(person['name'], person['snack'], st.session_state.current_theme)
-    person['out_time'] = datetime.now().strftime("%I:%M %p")
-    person['message'] = msg
-    
-    st.session_state.history.insert(0, person)
-    
-    if len(st.session_state.history) % 3 == 0:
-        st.balloons()
-    
-    return person
+# --- 4. THE ENHANCED UI LAYOUT ---
 
-def reset():
-    st.session_state.queue = []
-    st.session_state.history = []
-    st.session_state.ticket_id = 101
-    st.session_state.vip_mode = False
+# Theme Toggle Button (Fixed position)
+col_theme = st.columns([5, 1])
+with col_theme[1]:
+    theme_label = "🌙 Dark Mode" if st.session_state.theme == 'light' else "☀️ Light Mode"
+    if st.button(theme_label, key="theme_toggle", help="Toggle between dark and light mode"):
+        toggle_theme()
+        st.rerun()
 
-# --- 5. HEADER ---
+# Animated Header
+st.markdown("""
+<div class="animated-header">
+    <h1 style="margin:0; color: #ff4b4b;">🎬 Cinema Queue Simulator</h1>
+    <p style="margin:0; font-size: 1.2em;">A <strong>vibrant visual demonstration</strong> of the <strong>Queue (FIFO)</strong> algorithm with VIP priority!</p>
+</div>
+""", unsafe_allow_html=True)
+
+# Layout: 3 Columns
 col1, col2, col3 = st.columns([1, 2, 1])
-with col2:
-    st.markdown("""
-    <div class="cinema-header">
-        <div class="header-title">
-            <span>🎬</span>
-            <span>Neon Cinema Live</span>
-        </div>
-        <div class="header-subtitle">
-            Real-time Queue Management System
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
 
-# --- 6. MAIN GRID LAYOUT ---
-st.markdown('<div class="main-grid">', unsafe_allow_html=True)
-
-# --- LEFT COLUMN: CONTROLS ---
-col_left, col_center, col_right = st.columns([320, 1, 320])
-
-with col_left:
-    # Controls Panel
-    st.markdown('<div class="panel">', unsafe_allow_html=True)
+# --- COLUMN 1: ENHANCED CONTROL PANEL ---
+with col1:
+    st.markdown('<div class="control-panel">', unsafe_allow_html=True)
+    st.subheader("🎮 Control Center")
     
-    # Panel Header
-    st.markdown("""
-    <div class="panel-header">
-        <div class="panel-title">Controls</div>
-        <div class="badge">Live</div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown('<div class="queue-counter">Queue: {} people</div>'.format(len(st.session_state.queue)), unsafe_allow_html=True)
     
-    # Theme Selection
-    st.markdown('<div class="control-section">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">Theme</div>', unsafe_allow_html=True)
-    
-    themes_col1, themes_col2 = st.columns(2)
-    for i, (theme_name, theme_gradient) in enumerate(THEMES.items()):
-        is_active = theme_name == st.session_state.current_theme
-        active_class = "active" if is_active else ""
-        
-        if i % 2 == 0:
-            with themes_col1:
-                if st.button(f"🎨 {theme_name}", key=f"theme_{theme_name}", 
-                           use_container_width=True, type="primary" if is_active else "secondary"):
-                    st.session_state.current_theme = theme_name
-                    st.rerun()
-        else:
-            with themes_col2:
-                if st.button(f"🎨 {theme_name}", key=f"theme_{theme_name}", 
-                           use_container_width=True, type="primary" if is_active else "secondary"):
-                    st.session_state.current_theme = theme_name
-                    st.rerun()
-    
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # VIP Toggle
-    st.markdown('<div class="control-section">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">VIP Mode</div>', unsafe_allow_html=True)
-    
-    vip_col1, vip_col2 = st.columns([3, 1])
-    with vip_col1:
-        st.markdown(f"""
-        <div class="toggle-label">
-            <span>🌟</span>
-            <span>{'VIP Mode Active' if st.session_state.vip_mode else 'VIP Mode Inactive'}</span>
-        </div>
-        """, unsafe_allow_html=True)
-    with vip_col2:
-        if st.button("Toggle", key="vip_toggle", use_container_width=True):
-            st.session_state.vip_mode = not st.session_state.vip_mode
+    # Control Buttons
+    col_buttons = st.columns(2)
+    with col_buttons[0]:
+        if st.button("➕ Join Queue", help="Add a regular customer to the end of the queue"):
+            enqueue_person(is_vip=False)
             st.rerun()
     
-    st.markdown('</div>', unsafe_allow_html=True)
+    with col_buttons[1]:
+        if st.button("⭐ VIP Join", help="VIP customers get priority placement!", 
+                    key="vip_join"):
+            enqueue_person(is_vip=True)
+            st.rerun()
     
-    # Action Buttons
-    st.markdown('<div class="control-section">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">Actions</div>', unsafe_allow_html=True)
-    
-    if st.button("➕ Add Guest to Queue", type="primary", use_container_width=True):
-        enqueue()
+    if st.button("🎫 Serve Next Customer", type="primary", 
+                help="Serve the customer at the front of the queue"):
+        dequeue_person()
         st.rerun()
     
-    if st.button("🎟️ Serve Next Guest", type="secondary", use_container_width=True):
-        dequeue()
+    st.markdown("---")
+    
+    if st.button("🔄 Reset Simulator", help="Clear all queues and history"):
+        st.session_state.queue = []
+        st.session_state.history = []
+        st.session_state.ticket_id = 100
+        st.session_state.last_action = "Simulator Reset."
         st.rerun()
     
-    if st.button("🔄 Reset System", type="secondary", use_container_width=True):
-        reset()
+    if st.button("📊 Quick Stats", help="Generate random queue for demo"):
+        for _ in range(random.randint(3, 7)):
+            enqueue_person(is_vip=random.choice([True, False]))
         st.rerun()
     
-    st.markdown('</div>', unsafe_allow_html=True)
+    # Status Panel
+    st.markdown("---")
+    st.markdown("### 📈 Status Panel")
+    st.markdown(f'<span class="status-indicator status-active"></span> **Last Action:**', unsafe_allow_html=True)
+    st.info(st.session_state.last_action)
     
-    # Statistics
-    st.markdown('<div class="control-section">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">Statistics</div>', unsafe_allow_html=True)
-    
-    stats_col1, stats_col2 = st.columns(2)
-    
-    with stats_col1:
-        queue_len = len(st.session_state.queue)
-        wait_time = max(0, queue_len - 1) * 2
-        
-        st.markdown(f"""
-        <div style="background: #F7FAFC; border-radius: 12px; padding: 1rem; text-align: center;">
-            <div style="font-size: 1.5rem; font-weight: 700; color: #2D3748;">{queue_len}</div>
-            <div style="font-size: 0.75rem; color: #718096; margin-top: 0.25rem;">In Queue</div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown(f"""
-        <div style="background: #F7FAFC; border-radius: 12px; padding: 1rem; text-align: center; margin-top: 0.75rem;">
-            <div style="font-size: 1.5rem; font-weight: 700; color: #2D3748;">{len(st.session_state.history)}</div>
-            <div style="font-size: 0.75rem; color: #718096; margin-top: 0.25rem;">Served</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with stats_col2:
-        st.markdown(f"""
-        <div style="background: #F7FAFC; border-radius: 12px; padding: 1rem; text-align: center;">
-            <div style="font-size: 1.5rem; font-weight: 700; color: #2D3748;">{wait_time}m</div>
-            <div style="font-size: 0.75rem; color: #718096; margin-top: 0.25rem;">Wait Time</div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        vip_count = len([h for h in st.session_state.history if h.get('is_vip', False)])
-        st.markdown(f"""
-        <div style="background: #F7FAFC; border-radius: 12px; padding: 1rem; text-align: center; margin-top: 0.75rem;">
-            <div style="font-size: 1.5rem; font-weight: 700; color: #2D3748;">{vip_count}</div>
-            <div style="font-size: 0.75rem; color: #718096; margin-top: 0.25rem;">VIP Today</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)  # Close panel
+    st.markdown("</div>", unsafe_allow_html=True)
 
-# --- CENTER COLUMN: QUEUE ---
-with col_center:
-    # Queue Panel
-    st.markdown('<div class="panel">', unsafe_allow_html=True)
+# --- COLUMN 2: VISUAL QUEUE DISPLAY ---
+with col2:
+    # Current Serving Display
+    if len(st.session_state.queue) > 0:
+        next_person = st.session_state.queue[0]
+        vip_status = "⭐ **VIP** " if next_person.get('is_vip', False) else ""
+        st.markdown(f"""
+        <div class="current-serving">
+            <h3>🎬 NOW SERVING</h3>
+            <div style="font-size: 40px;">{next_person['avatar']}</div>
+            <h2>{vip_status}Ticket #{next_person['id']}</h2>
+            <p style="font-size: 1.3em;"><strong>{next_person['name']}</strong></p>
+            <p>Joined at: {next_person['time']}</p>
+        </div>
+        """, unsafe_allow_html=True)
     
-    # Panel Header
-    queue_count = len(st.session_state.queue)
-    st.markdown(f"""
-    <div class="panel-header">
-        <div class="panel-title">Live Queue</div>
-        <div class="badge">{queue_count} waiting</div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.subheader(f"👥 Current Queue ({len(st.session_state.queue)})")
     
-    # Queue Content
-    st.markdown('<div class="queue-container">', unsafe_allow_html=True)
-    
-    if not st.session_state.queue:
+    if len(st.session_state.queue) == 0:
         st.markdown("""
-        <div class="empty-state">
-            <div class="empty-icon">🎭</div>
-            <div style="font-weight: 600; color: #4A5568; margin-bottom: 0.5rem;">Queue is Empty</div>
-            <div style="font-size: 0.875rem; color: #718096;">Add guests to start serving</div>
+        <div style="text-align: center; padding: 40px; background: rgba(255,255,255,0.05); border-radius: 15px;">
+            <div style="font-size: 50px;">🎭</div>
+            <h3>The lobby is empty</h3>
+            <p>No one is waiting. Add some customers to begin!</p>
         </div>
         """, unsafe_allow_html=True)
     else:
-        for i, ticket in enumerate(st.session_state.queue):
-            is_active = (i == 0)
-            is_vip = ticket['is_vip']
-            
-            card_class = "ticket-card"
-            if is_active:
-                card_class += " active"
-            if is_vip:
-                card_class += " vip"
-            
-            status_text = "NOW SERVING" if is_active else f"WAITING #{i}"
-            status_class = "active" if is_active else ""
-            
+        # Display the queue flow
+        st.markdown("""
+        <div style="text-align: center; margin: 20px 0;">
+            <div style="color: #4CAF50; font-weight: bold;">⬇️ FRONT OF LINE ⬇️</div>
+            <div style="font-size: 12px; color: #888;">(Next to be served)</div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Display first 6 people
+        people_to_show = st.session_state.queue[:6]
+        cols = st.columns(len(people_to_show) if len(people_to_show) > 0 else 1)
+        
+        for idx, person in enumerate(people_to_show):
+            with cols[idx]:
+                vip_class = "vip" if person.get('is_vip', False) else ""
+                vip_badge = '<div class="vip-badge">VIP</div>' if person.get('is_vip', False) else ""
+                
+                st.markdown(f"""
+                <div class="ticket-card {vip_class}">
+                    {vip_badge}
+                    <div style="font-size: 40px;">{person['avatar']}</div>
+                    <div class="ticket-number">#{person['id']}</div>
+                    <div class="ticket-name">{person['name']}</div>
+                    <div style="font-size: 12px; margin-top: 5px;">{person['time']}</div>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        if len(st.session_state.queue) > 6:
             st.markdown(f"""
-            <div class="{card_class}">
-                <div class="ticket-header">
-                    <div class="ticket-id">#{ticket['id']}</div>
-                    <div class="ticket-status {status_class}">{status_text}</div>
-                </div>
-                <div class="ticket-content">
-                    <div class="ticket-avatar">{ticket['avatar']}</div>
-                    <div class="ticket-info">
-                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
-                            <div class="ticket-name">{ticket['name']}</div>
-                            {f'<div class="vip-badge">VIP</div>' if is_vip else ''}
-                        </div>
-                        <div class="ticket-details">
-                            <span>{ticket['snack']}</span>
-                            <span>•</span>
-                            <span>{ticket['joined']}</span>
-                        </div>
-                    </div>
-                </div>
+            <div style="text-align: center; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 10px; margin: 20px 0;">
+                <div style="font-size: 30px;">👥</div>
+                <p>...and <strong>{len(st.session_state.queue) - 6}</strong> more waiting behind</p>
             </div>
             """, unsafe_allow_html=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)  # Close queue container
-    st.markdown('</div>', unsafe_allow_html=True)  # Close panel
-
-# --- RIGHT COLUMN: HISTORY ---
-with col_right:
-    # History Panel
-    st.markdown('<div class="panel">', unsafe_allow_html=True)
-    
-    # Panel Header
-    history_count = len(st.session_state.history)
-    st.markdown(f"""
-    <div class="panel-header">
-        <div class="panel-title">Recently Served</div>
-        <div class="badge">{history_count} total</div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # History Content
-    st.markdown('<div class="history-container">', unsafe_allow_html=True)
-    
-    if not st.session_state.history:
+        
         st.markdown("""
-        <div class="empty-state">
-            <div class="empty-icon">📋</div>
-            <div style="font-weight: 600; color: #4A5568; margin-bottom: 0.5rem;">No History Yet</div>
-            <div style="font-size: 0.875rem; color: #718096;">Serve some guests to see history</div>
+        <div style="text-align: center; margin: 20px 0;">
+            <div style="color: #ff4b4b; font-weight: bold;">⬆️ BACK OF LINE ⬆️</div>
+            <div style="font-size: 12px; color: #888;">(New people join here)</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+# --- COLUMN 3: HISTORY & STATS ---
+with col3:
+    st.markdown('<div class="control-panel">', unsafe_allow_html=True)
+    st.subheader("📜 Service History")
+    
+    if len(st.session_state.history) == 0:
+        st.markdown("""
+        <div style="text-align: center; padding: 20px;">
+            <div style="font-size: 40px;">📭</div>
+            <p><em>No tickets processed yet</em></p>
         </div>
         """, unsafe_allow_html=True)
     else:
-        for i, item in enumerate(st.session_state.history[:6]):  # Show last 6
-            if i > 0:
-                st.markdown('<hr style="margin: 0.5rem 0; border: none; border-top: 1px solid #E2E8F0;">', unsafe_allow_html=True)
-            
-            vip_icon = "🌟 " if item['is_vip'] else ""
-            
+        total_served = len(st.session_state.history)
+        vip_served = sum(1 for p in st.session_state.history if p.get('is_vip', False))
+        
+        # Stats
+        st.metric("Total Served", total_served)
+        if vip_served > 0:
+            st.metric("VIP Served", vip_served)
+        
+        st.markdown("---")
+        
+        # Recent history
+        st.markdown("**Recent Activity:**")
+        for person in st.session_state.history[:5]:
+            vip_icon = "⭐ " if person.get('is_vip', False) else ""
             st.markdown(f"""
-            <div class="history-item">
-                <div class="history-header">
-                    <div class="history-name">{vip_icon}{item['name']}</div>
-                    <div class="history-time">{item['out_time']}</div>
-                </div>
-                <div class="history-details">
-                    #{item['id']} • {item['snack']}
-                </div>
-                <div class="history-message">
-                    "{item['message']}"
-                </div>
+            <div class="history-card">
+                <strong>{vip_icon}#{person['id']} {person['name']}</strong> {person['avatar']}
+                <div style="font-size: 12px; color: #666;">Served at {person['time']}</div>
             </div>
             """, unsafe_allow_html=True)
     
-    st.markdown('</div>', unsafe_allow_html=True)  # Close history container
-    st.markdown('</div>', unsafe_allow_html=True)  # Close panel
+    st.markdown("</div>", unsafe_allow_html=True)
 
-st.markdown('</div>', unsafe_allow_html=True)  # Close main grid
+# --- FOOTER WITH ALGORITHM EXPLANATION ---
+st.divider()
 
-# --- 7. STATUS BAR ---
+# Algorithm explanation in tabs
+tab1, tab2, tab3 = st.tabs(["🧠 How it Works", "⭐ VIP Priority", "🎯 Key Features"])
+
+with tab1:
+    col_exp1, col_exp2 = st.columns(2)
+    with col_exp1:
+        st.markdown("""
+        ### Queue (FIFO) Algorithm
+        
+        1. **Enqueue** 
+           ```python
+           queue.append(item)
+           ```
+           Person enters at the **back**
+        
+        2. **Dequeue**
+           ```python
+           queue.pop(0)
+           ```
+           Person at the **front** leaves
+        """)
+    
+    with col_exp2:
+        st.markdown("""
+        ### Real-world Examples
+        
+        • 🎬 Movie ticket lines
+        • 🖨️ Printer job queues  
+        • 📞 Customer service calls
+        • 🚗 Drive-thru orders
+        • 🎮 Game matchmaking
+        """)
+
+with tab2:
+    col_vip1, col_vip2 = st.columns(2)
+    with col_vip1:
+        st.markdown("""
+        ### VIP Priority System
+        
+        ⭐ **VIP customers** jump ahead of regular customers!
+        
+        **Implementation:**
+        ```python
+        if is_vip:
+            # Insert after last VIP in queue
+            queue.insert(vip_position, person)
+        else:
+            # Regular customers go to back
+            queue.append(person)
+        ```
+        """)
+    
+    with col_vip2:
+        st.markdown("""
+        ### Priority Rules
+        
+        1. All VIPs go before regular customers
+        2. Among VIPs: First-come, first-served
+        3. Regular queue maintains FIFO order
+        4. VIPs don't displace other VIPs
+        """)
+
+with tab3:
+    feat_cols = st.columns(3)
+    with feat_cols[0]:
+        st.markdown("""
+        ### 🎨 Visual Design
+        • Gradient backgrounds
+        • Animated elements
+        • Smooth transitions
+        • Dark/Light themes
+        """)
+    
+    with feat_cols[1]:
+        st.markdown("""
+        ### ⚡ Interactive
+        • Real-time updates
+        • VIP priority system
+        • Queue visualization
+        • Service history
+        """)
+    
+    with feat_cols[2]:
+        st.markdown("""
+        ### 📱 Responsive
+        • Works on all devices
+        • Clean mobile layout
+        • Intuitive controls
+        • Live status updates
+        """)
+
+# Footer
+st.markdown("---")
 st.markdown("""
-<div class="status-bar">
-    <div class="status-item">
-        <span>🎬</span>
-        <span>System Status: <strong>Operational</strong></span>
-    </div>
-    <div class="status-item">
-        <span>🤖</span>
-        <span>AI: <strong>{ai_status}</strong></span>
-    </div>
-    <div class="status-item">
-        <span>⏱️</span>
-        <span>Next: <strong>{next_guest}</strong></span>
-    </div>
+<div style="text-align: center; color: #888; font-size: 0.9em;">
+    <p>🎬 <strong>Cinema Queue Simulator</strong> | Built with Streamlit | Demonstrating FIFO Queue Algorithm</p>
+    <p>Click buttons to interact with the queue!</p>
 </div>
-""".format(
-    ai_status="Active" if get_api_key() and HAS_GENAI_LIB else "Disabled",
-    next_guest=st.session_state.queue[0]['name'] if st.session_state.queue else "None"
-), unsafe_allow_html=True)
+""", unsafe_allow_html=True)
