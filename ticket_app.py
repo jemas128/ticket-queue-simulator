@@ -4,232 +4,320 @@ import random
 from datetime import datetime
 
 # --- 1. CONFIGURATION & STYLING ---
-st.set_page_config(page_title="Cinema Queue Simulator", page_icon="🎬", layout="wide")
+st.set_page_config(
+    page_title="Cinema Queue Simulator", 
+    page_icon="🎬", 
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
 
-# Initialize theme in session state
+# Initialize session state
 if 'theme' not in st.session_state:
     st.session_state.theme = 'dark'
 
-# Custom CSS with gradient, animations, and theme switching
+# Custom CSS with beautiful gradients and animations
 st.markdown(f"""
 <style>
-    /* Base Theme Variables */
+    /* Modern Color Palette */
     :root {{
-        --primary-color: #ff4b4b;
-        --secondary-color: #4CAF50;
-        --accent-color: #FFD700;
-        --bg-gradient-start: {'#0f0c29' if st.session_state.theme == 'dark' else '#F8F9FA'};
-        --bg-gradient-end: {'#302b63' if st.session_state.theme == 'dark' else '#E9ECEF'};
-        --card-bg: {'#262730' if st.session_state.theme == 'dark' else '#FFFFFF'};
-        --text-color: {'#FFFFFF' if st.session_state.theme == 'dark' else '#000000'};
-        --border-color: {'#444' if st.session_state.theme == 'dark' else '#ddd'};
+        --primary: #FF6B6B;
+        --secondary: #4ECDC4;
+        --accent: #FFD166;
+        --vip: #FFB347;
+        --success: #06D6A0;
+        --dark-bg: #1A1A2E;
+        --dark-card: #16213E;
+        --light-bg: #F8F9FF;
+        --light-card: #FFFFFF;
+        --text-dark: #FFFFFF;
+        --text-light: #2D3047;
     }}
     
-    /* Main Background with Gradient */
+    /* Main Styling */
     .stApp {{
-        background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
+        background: linear-gradient(135deg, 
+            {'#1A1A2E 0%, #16213E 50%, #0F3460 100%' if st.session_state.theme == 'dark' else 
+             '#F8F9FF 0%, #E6E9FF 50%, #D6DAFF 100%'});
         background-attachment: fixed;
-        color: var(--text-color);
-        transition: all 0.5s ease;
+        min-height: 100vh;
+        color: {'var(--text-dark)' if st.session_state.theme == 'dark' else 'var(--text-light)'};
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }}
     
     /* Animated Header */
-    @keyframes glow {{
-        0%, 100% {{ text-shadow: 0 0 10px var(--primary-color); }}
-        50% {{ text-shadow: 0 0 20px var(--primary-color), 0 0 30px var(--primary-color); }}
+    @keyframes float {{
+        0%, 100% {{ transform: translateY(0px); }}
+        50% {{ transform: translateY(-10px); }}
     }}
     
-    .animated-header {{
-        animation: glow 2s infinite;
-        text-align: center;
-        padding: 20px;
-        background: linear-gradient(45deg, 
-            {'rgba(255, 75, 75, 0.1)' if st.session_state.theme == 'dark' else 'rgba(255, 75, 75, 0.05)'}, 
-            {'rgba(76, 175, 80, 0.1)' if st.session_state.theme == 'dark' else 'rgba(76, 175, 80, 0.05)'});
-        border-radius: 20px;
-        margin-bottom: 30px;
-        border: 2px solid {'rgba(255, 75, 75, 0.3)' if st.session_state.theme == 'dark' else 'rgba(255, 75, 75, 0.1)'};
-    }}
-    
-    /* Enhanced Ticket Cards */
-    .ticket-card {{
-        background: var(--card-bg);
-        border: 3px solid var(--primary-color);
-        border-radius: 15px;
-        padding: 15px;
-        margin: 10px;
-        text-align: center;
-        box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-        transition: all 0.3s ease;
+    .main-header {{
+        background: linear-gradient(90deg, 
+            rgba(255, 107, 107, 0.2) 0%, 
+            rgba(78, 205, 196, 0.2) 50%, 
+            rgba(255, 209, 102, 0.2) 100%);
+        padding: 30px;
+        border-radius: 25px;
+        margin: 20px 0 40px 0;
+        border: 2px solid rgba(255, 107, 107, 0.3);
+        backdrop-filter: blur(10px);
         position: relative;
         overflow: hidden;
     }}
     
+    .main-header::before {{
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: linear-gradient(45deg, transparent 30%, rgba(255, 107, 107, 0.1) 50%, transparent 70%);
+        animation: shimmer 3s infinite linear;
+    }}
+    
+    @keyframes shimmer {{
+        0% {{ transform: translateX(-50%) translateY(-50%) rotate(0deg); }}
+        100% {{ transform: translateX(-50%) translateY(-50%) rotate(360deg); }}
+    }}
+    
+    .cinema-title {{
+        font-size: 3.5rem;
+        font-weight: 800;
+        background: linear-gradient(45deg, #FF6B6B, #4ECDC4, #FFD166);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin: 0;
+        animation: float 3s ease-in-out infinite;
+    }}
+    
+    /* Control Panel */
+    .control-panel {{
+        background: {'rgba(22, 33, 62, 0.9)' if st.session_state.theme == 'dark' else 'rgba(255, 255, 255, 0.9)'};
+        padding: 25px;
+        border-radius: 20px;
+        border: 2px solid var(--primary);
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+        backdrop-filter: blur(15px);
+        margin-bottom: 20px;
+    }}
+    
+    /* Queue Display Area */
+    .queue-display {{
+        background: {'rgba(22, 33, 62, 0.8)' if st.session_state.theme == 'dark' else 'rgba(255, 255, 255, 0.8)'};
+        padding: 30px;
+        border-radius: 20px;
+        border: 2px solid rgba(78, 205, 196, 0.3);
+        backdrop-filter: blur(10px);
+        min-height: 400px;
+    }}
+    
+    /* Ticket Cards */
+    .ticket-card {{
+        background: linear-gradient(135deg, 
+            {'rgba(255, 107, 107, 0.15)' if st.session_state.theme == 'dark' else 'rgba(255, 107, 107, 0.1)'}, 
+            {'rgba(78, 205, 196, 0.15)' if st.session_state.theme == 'dark' else 'rgba(78, 205, 196, 0.1)'});
+        border: 3px solid var(--primary);
+        border-radius: 15px;
+        padding: 20px;
+        text-align: center;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        position: relative;
+        overflow: hidden;
+        cursor: pointer;
+    }}
+    
+    .ticket-card::before {{
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, var(--primary), var(--secondary));
+    }}
+    
     .ticket-card:hover {{
-        transform: translateY(-5px);
-        box-shadow: 0 15px 30px rgba(255, 75, 75, 0.3);
+        transform: translateY(-8px) scale(1.05);
+        box-shadow: 0 20px 40px rgba(255, 107, 107, 0.3);
     }}
     
     .ticket-card.vip {{
-        background: linear-gradient(45deg, #FFD700, #FFA500);
-        border: 3px solid #FFD700;
-        color: #000;
-    }}
-    
-    .ticket-card.vip .ticket-number {{
-        color: #B8860B;
-    }}
-    
-    .ticket-number {{
-        font-size: 24px;
-        font-weight: bold;
-        color: var(--primary-color);
-        margin: 10px 0;
-    }}
-    
-    .ticket-name {{
-        font-size: 16px;
-        font-weight: 500;
+        background: linear-gradient(135deg, rgba(255, 179, 71, 0.3), rgba(255, 209, 102, 0.4));
+        border: 3px solid var(--vip);
     }}
     
     .vip-badge {{
         position: absolute;
         top: 10px;
         right: 10px;
-        background: #FFD700;
+        background: linear-gradient(45deg, #FFB347, #FFD166);
         color: #000;
-        padding: 2px 8px;
-        border-radius: 10px;
-        font-size: 10px;
+        padding: 5px 12px;
+        border-radius: 15px;
+        font-size: 11px;
         font-weight: bold;
+        box-shadow: 0 4px 10px rgba(255, 179, 71, 0.3);
     }}
     
-    /* Current Serving Display */
-    .current-serving {{
-        background: linear-gradient(45deg, 
-            {'rgba(209, 255, 189, 0.9)' if st.session_state.theme == 'dark' else 'rgba(209, 255, 189, 0.95)'}, 
-            {'rgba(76, 175, 80, 0.9)' if st.session_state.theme == 'dark' else 'rgba(76, 175, 80, 0.95)'});
-        color: #1a4a1a;
-        padding: 25px;
-        border-radius: 15px;
-        text-align: center;
-        border: 3px dashed #4CAF50;
-        margin-bottom: 20px;
-        font-size: 1.2em;
-        box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+    .ticket-avatar {{
+        font-size: 50px;
+        margin: 10px 0;
+        filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2));
+    }}
+    
+    .ticket-number {{
+        font-size: 22px;
+        font-weight: bold;
+        color: var(--primary);
+        margin: 10px 0;
+    }}
+    
+    .ticket-name {{
+        font-size: 16px;
+        font-weight: 600;
+        color: {'#FFFFFF' if st.session_state.theme == 'dark' else '#2D3047'};
     }}
     
     /* Enhanced Buttons */
     .stButton>button {{
         width: 100%;
-        border-radius: 15px;
-        height: 3.5em;
+        border-radius: 12px;
+        height: 55px;
         font-weight: bold;
-        font-size: 1.1em;
-        margin: 5px 0;
+        font-size: 16px;
+        margin: 8px 0;
         transition: all 0.3s ease;
         border: none;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        position: relative;
+        overflow: hidden;
     }}
     
     .stButton>button:hover {{
-        transform: translateY(-2px);
-        box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+        transform: translateY(-3px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.2);
     }}
     
-    .primary-button {{
-        background: linear-gradient(45deg, #FF4B4B, #FF6B6B);
-        color: white;
+    .stButton>button::after {{
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.2) 50%, transparent 70%);
+        transform: translateX(-100%);
     }}
     
-    .vip-button {{
-        background: linear-gradient(45deg, #FFD700, #FFA500);
-        color: #000;
-        font-weight: bold;
+    .stButton>button:hover::after {{
+        transform: translateX(100%);
+        transition: transform 0.6s ease;
     }}
     
-    .secondary-button {{
-        background: linear-gradient(45deg, #4CAF50, #66BB6A);
-        color: white;
-    }}
-    
-    .theme-button {{
-        background: linear-gradient(45deg, #6C63FF, #9A94FF);
-        color: white;
+    /* Theme Toggle */
+    .theme-toggle {{
         position: fixed;
-        bottom: 20px;
-        right: 20px;
+        bottom: 25px;
+        right: 25px;
         z-index: 1000;
-        width: auto !important;
-        padding: 10px 20px;
     }}
     
-    /* Control Panel Styling */
-    .control-panel {{
-        background: {'rgba(38, 39, 48, 0.8)' if st.session_state.theme == 'dark' else 'rgba(255, 255, 255, 0.8)'};
-        padding: 25px;
-        border-radius: 20px;
-        border: 2px solid var(--primary-color);
-        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-        backdrop-filter: blur(10px);
-    }}
-    
-    /* Queue Counter */
-    .queue-counter {{
-        background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
-        color: white;
-        padding: 10px 20px;
-        border-radius: 50px;
-        font-size: 1.2em;
-        font-weight: bold;
+    /* Status Indicators */
+    .status-badge {{
         display: inline-block;
-        margin: 10px 0;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-weight: bold;
+        margin: 5px;
         animation: pulse 2s infinite;
     }}
     
-    @keyframes pulse {{
-        0% {{ transform: scale(1); }}
-        50% {{ transform: scale(1.05); }}
-        100% {{ transform: scale(1); }}
+    .status-serving {{
+        background: linear-gradient(45deg, var(--success), #06D6A0);
+        color: white;
     }}
     
-    /* History Cards */
-    .history-card {{
-        background: {'rgba(38, 39, 48, 0.6)' if st.session_state.theme == 'dark' else 'rgba(255, 255, 255, 0.6)'};
-        padding: 15px;
+    .status-waiting {{
+        background: linear-gradient(45deg, #FF6B6B, #FF8E8E);
+        color: white;
+    }}
+    
+    /* Now Serving Display */
+    .now-serving {{
+        background: linear-gradient(135deg, rgba(6, 214, 160, 0.2), rgba(78, 205, 196, 0.3));
+        border: 3px solid var(--success);
+        border-radius: 20px;
+        padding: 25px;
+        text-align: center;
+        margin: 20px 0;
+        position: relative;
+        overflow: hidden;
+    }}
+    
+    .now-serving::after {{
+        content: 'NOW SERVING';
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        font-size: 12px;
+        font-weight: bold;
+        color: var(--success);
+        opacity: 0.5;
+    }}
+    
+    /* Queue Flow Indicators */
+    .queue-flow {{
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin: 20px 0;
+        padding: 10px 20px;
+        background: {'rgba(255,255,255,0.05)' if st.session_state.theme == 'dark' else 'rgba(0,0,0,0.05)'};
+        border-radius: 15px;
+        font-weight: bold;
+    }}
+    
+    .front-of-line {{
+        color: var(--success);
+    }}
+    
+    .back-of-line {{
+        color: var(--primary);
+    }}
+    
+    /* Statistics Cards */
+    .stat-card {{
+        background: {'rgba(22, 33, 62, 0.7)' if st.session_state.theme == 'dark' else 'rgba(255, 255, 255, 0.7)'};
+        padding: 20px;
+        border-radius: 15px;
+        text-align: center;
         margin: 10px 0;
-        border-radius: 10px;
-        border-left: 5px solid var(--secondary-color);
-        transition: all 0.3s ease;
+        border-left: 5px solid var(--secondary);
     }}
     
-    .history-card:hover {{
-        transform: translateX(5px);
-        background: {'rgba(38, 39, 48, 0.8)' if st.session_state.theme == 'dark' else 'rgba(255, 255, 255, 0.8)'};
+    /* Scrollbar Styling */
+    ::-webkit-scrollbar {{
+        width: 8px;
     }}
     
-    /* Status Indicator */
-    .status-indicator {{
-        display: inline-block;
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        margin-right: 10px;
-        animation: blink 1s infinite;
+    ::-webkit-scrollbar-track {{
+        background: {'rgba(255,255,255,0.05)' if st.session_state.theme == 'dark' else 'rgba(0,0,0,0.05)'};
+        border-radius: 4px;
     }}
     
-    .status-active {{
-        background-color: #4CAF50;
+    ::-webkit-scrollbar-thumb {{
+        background: linear-gradient(var(--primary), var(--secondary));
+        border-radius: 4px;
     }}
     
-    @keyframes blink {{
-        0%, 100% {{ opacity: 1; }}
-        50% {{ opacity: 0.5; }}
+    ::-webkit-scrollbar-thumb:hover {{
+        background: linear-gradient(var(--secondary), var(--primary));
     }}
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. SESSION STATE (The Memory) ---
+# --- 2. SESSION STATE ---
 if 'queue' not in st.session_state:
     st.session_state.queue = []
 
@@ -240,280 +328,358 @@ if 'ticket_id' not in st.session_state:
     st.session_state.ticket_id = 100
 
 if 'last_action' not in st.session_state:
-    st.session_state.last_action = "Welcome! Queue is empty."
+    st.session_state.last_action = "🎬 Welcome to Cinema Queue Simulator! Add your first customer."
+
+if 'auto_mode' not in st.session_state:
+    st.session_state.auto_mode = False
 
 # --- 3. HELPER FUNCTIONS ---
-
 def generate_random_person(is_vip=False):
-    names = ["Alice", "Bob", "Charlie", "Diana", "Ethan", "Fiona", "George", "Hannah", 
-             "Ian", "Julia", "Kevin", "Luna", "Mike", "Nina", "Oscar", "Paula"]
-    emojis = ["👱", "👵", "👮", "🧑‍💻", "🧟", "🧛", "🧙", "🦸", "👨‍🚀", "👩‍🎤", "🕵️", "👩‍🍳", "🧑‍🎨", "👨‍🔬"]
-    
+    """Generate a random person with unique attributes"""
     if is_vip:
-        names = ["Mr. Smith", "Madame X", "Sir Reginald", "Lady Aurora", "Count Dracula", 
-                "Professor X", "Agent 007", "Queen Bee"]
-        emojis = ["👑", "🎩", "💎", "🌟", "⭐", "✨", "💼", "🕶️"]
+        names = ["James Bond", "Cleopatra", "Tony Stark", "Wonder Woman", "Black Panther", 
+                "Doctor Strange", "Princess Leia", "The Godfather"]
+        emojis = ["👑", "🎩", "💎", "🌟", "⭐", "✨", "🕶️", "🧳"]
+    else:
+        names = ["Alex", "Jordan", "Taylor", "Casey", "Riley", "Morgan", "Charlie", "Dakota",
+                "Skyler", "Quinn", "Parker", "Drew", "Blake", "Avery", "Reese"]
+        emojis = ["👱", "👵", "👮", "🧑‍💻", "🧟", "🧛", "🧙", "🦸", "👨‍🚀", "👩‍🎤", "🕵️", "👩‍🍳", "🧑‍🎨", "👨‍🔬", "👷"]
     
     return {
         "name": random.choice(names),
         "avatar": random.choice(emojis),
         "id": st.session_state.ticket_id,
         "time": datetime.now().strftime("%H:%M:%S"),
-        "is_vip": is_vip
+        "is_vip": is_vip,
+        "ticket_color": random.choice(["#FF6B6B", "#4ECDC4", "#FFD166", "#118AB2", "#EF476F"])
     }
 
 def enqueue_person(is_vip=False):
+    """Add a person to the queue"""
     person = generate_random_person(is_vip)
     
     if is_vip:
-        # Insert VIP at the front of the queue (after any other VIPs)
+        # Insert VIP after the last VIP in queue (maintaining VIP order)
         vip_positions = [i for i, p in enumerate(st.session_state.queue) if p.get('is_vip', False)]
         if vip_positions:
             insert_position = vip_positions[-1] + 1
         else:
             insert_position = 0
         st.session_state.queue.insert(insert_position, person)
-        st.session_state.last_action = f"⭐ **VIP** Ticket #{person['id']} ({person['name']}) joined with priority!"
+        st.session_state.last_action = f"⭐ **VIP Alert!** {person['avatar']} {person['name']} (Ticket #{person['id']}) entered with priority!"
     else:
         st.session_state.queue.append(person)
-        st.session_state.last_action = f"✅ Ticket #{person['id']} ({person['name']}) joined the line."
+        st.session_state.last_action = f"✅ {person['avatar']} {person['name']} (Ticket #{person['id']}) joined the queue."
     
     st.session_state.ticket_id += 1
 
 def dequeue_person():
-    if len(st.session_state.queue) > 0:
+    """Serve the next person in queue"""
+    if st.session_state.queue:
         person = st.session_state.queue.pop(0)
+        person['served_time'] = datetime.now().strftime("%H:%M:%S")
         st.session_state.history.insert(0, person)
-        status = "⭐ **VIP SERVED**" if person.get('is_vip', False) else "🎟️ Serving"
-        st.session_state.last_action = f"{status} Ticket #{person['id']} ({person['name']})..."
+        
+        if person.get('is_vip', False):
+            st.session_state.last_action = f"🎉 **VIP SERVED!** {person['avatar']} {person['name']} (Ticket #{person['id']}) has been served."
+        else:
+            st.session_state.last_action = f"🎟️ {person['avatar']} {person['name']} (Ticket #{person['id']}) has been served."
     else:
-        st.session_state.last_action = "⚠️ The queue is empty!"
+        st.session_state.last_action = "⚠️ Queue is empty! Add some customers first."
 
 def toggle_theme():
+    """Switch between dark and light mode"""
     st.session_state.theme = 'light' if st.session_state.theme == 'dark' else 'dark'
+    st.rerun()
 
-# --- 4. THE ENHANCED UI LAYOUT ---
+def clear_queue():
+    """Reset the simulator"""
+    st.session_state.queue = []
+    st.session_state.history = []
+    st.session_state.ticket_id = 100
+    st.session_state.last_action = "🔄 Simulator has been reset."
+    st.rerun()
 
-# Theme Toggle Button (Fixed position)
-col_theme = st.columns([5, 1])
-with col_theme[1]:
+def populate_queue():
+    """Add multiple random customers for demo"""
+    for _ in range(random.randint(4, 8)):
+        enqueue_person(is_vip=random.choice([True, False]))
+    st.session_state.last_action = f"📊 Added {len(st.session_state.queue)} random customers to queue."
+    st.rerun()
+
+# --- 4. THEME TOGGLE BUTTON ---
+with st.sidebar:
     theme_label = "🌙 Dark Mode" if st.session_state.theme == 'light' else "☀️ Light Mode"
-    if st.button(theme_label, key="theme_toggle", help="Toggle between dark and light mode"):
+    if st.button(theme_label, key="theme_toggle", help="Toggle theme"):
         toggle_theme()
-        st.rerun()
 
-# Animated Header
+# --- 5. MAIN HEADER ---
 st.markdown("""
-<div class="animated-header">
-    <h1 style="margin:0; color: #ff4b4b;">🎬 Cinema Queue Simulator</h1>
-    <p style="margin:0; font-size: 1.2em;">A <strong>vibrant visual demonstration</strong> of the <strong>Queue (FIFO)</strong> algorithm with VIP priority!</p>
+<div class="main-header">
+    <h1 class="cinema-title">🎬 CINEMA QUEUE SIMULATOR</h1>
+    <div style="text-align: center; font-size: 1.2rem; opacity: 0.9;">
+        A <strong>visual & interactive</strong> demonstration of the <strong>Queue (FIFO)</strong> algorithm
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
-# Layout: 3 Columns
+# --- 6. MAIN LAYOUT ---
 col1, col2, col3 = st.columns([1, 2, 1])
 
-# --- COLUMN 1: ENHANCED CONTROL PANEL ---
+# --- COLUMN 1: CONTROL PANEL ---
 with col1:
     st.markdown('<div class="control-panel">', unsafe_allow_html=True)
-    st.subheader("🎮 Control Center")
     
-    st.markdown('<div class="queue-counter">Queue: {} people</div>'.format(len(st.session_state.queue)), unsafe_allow_html=True)
+    st.markdown("### 🎮 CONTROL CENTER")
     
-    # Control Buttons
-    col_buttons = st.columns(2)
-    with col_buttons[0]:
-        if st.button("➕ Join Queue", help="Add a regular customer to the end of the queue"):
-            enqueue_person(is_vip=False)
-            st.rerun()
+    # Queue Counter
+    st.markdown(f"""
+    <div class="status-badge status-waiting">
+        👥 Queue: {len(st.session_state.queue)} people
+    </div>
+    """, unsafe_allow_html=True)
     
-    with col_buttons[1]:
-        if st.button("⭐ VIP Join", help="VIP customers get priority placement!", 
-                    key="vip_join"):
-            enqueue_person(is_vip=True)
-            st.rerun()
+    # Action Buttons
+    if st.button("🎫 **ADD CUSTOMER**", type="primary", use_container_width=True):
+        enqueue_person(is_vip=False)
+        st.rerun()
     
-    if st.button("🎫 Serve Next Customer", type="primary", 
-                help="Serve the customer at the front of the queue"):
+    if st.button("⭐ **ADD VIP**", help="VIPs get priority placement!", use_container_width=True):
+        enqueue_person(is_vip=True)
+        st.rerun()
+    
+    if st.button("🚀 **SERVE NEXT**", type="secondary", use_container_width=True):
         dequeue_person()
         st.rerun()
     
     st.markdown("---")
     
-    if st.button("🔄 Reset Simulator", help="Clear all queues and history"):
-        st.session_state.queue = []
-        st.session_state.history = []
-        st.session_state.ticket_id = 100
-        st.session_state.last_action = "Simulator Reset."
-        st.rerun()
+    # Utility Buttons
+    col_util1, col_util2 = st.columns(2)
+    with col_util1:
+        if st.button("🔄 Reset", help="Clear all data"):
+            clear_queue()
+    with col_util2:
+        if st.button("🎲 Demo", help="Generate random queue"):
+            populate_queue()
     
-    if st.button("📊 Quick Stats", help="Generate random queue for demo"):
-        for _ in range(random.randint(3, 7)):
-            enqueue_person(is_vip=random.choice([True, False]))
-        st.rerun()
-    
-    # Status Panel
+    # Status Display
     st.markdown("---")
-    st.markdown("### 📈 Status Panel")
-    st.markdown(f'<span class="status-indicator status-active"></span> **Last Action:**', unsafe_allow_html=True)
+    st.markdown("### 📊 STATUS")
     st.info(st.session_state.last_action)
+    
+    # Quick Stats
+    if st.session_state.history:
+        st.metric("Total Served", len(st.session_state.history))
+        vip_count = sum(1 for p in st.session_state.history if p.get('is_vip', False))
+        if vip_count > 0:
+            st.metric("VIPs Served", vip_count)
     
     st.markdown("</div>", unsafe_allow_html=True)
 
-# --- COLUMN 2: VISUAL QUEUE DISPLAY ---
+# --- COLUMN 2: QUEUE VISUALIZATION ---
 with col2:
-    # Current Serving Display
-    if len(st.session_state.queue) > 0:
+    st.markdown('<div class="queue-display">', unsafe_allow_html=True)
+    
+    # Now Serving Section
+    if st.session_state.queue:
         next_person = st.session_state.queue[0]
-        vip_status = "⭐ **VIP** " if next_person.get('is_vip', False) else ""
         st.markdown(f"""
-        <div class="current-serving">
-            <h3>🎬 NOW SERVING</h3>
-            <div style="font-size: 40px;">{next_person['avatar']}</div>
-            <h2>{vip_status}Ticket #{next_person['id']}</h2>
-            <p style="font-size: 1.3em;"><strong>{next_person['name']}</strong></p>
-            <p>Joined at: {next_person['time']}</p>
+        <div class="now-serving">
+            <div style="font-size: 50px; margin-bottom: 15px;">{next_person['avatar']}</div>
+            <h2 style="margin: 10px 0; color: #06D6A0;">
+                {'⭐ ' if next_person.get('is_vip', False) else ''}
+                TICKET #{next_person['id']}
+            </h2>
+            <h3 style="margin: 10px 0;">{next_person['name']}</h3>
+            <p style="opacity: 0.8; margin: 5px 0;">Joined: {next_person['time']}</p>
         </div>
         """, unsafe_allow_html=True)
     
-    st.subheader(f"👥 Current Queue ({len(st.session_state.queue)})")
+    # Queue Visualization
+    st.subheader(f"📋 CURRENT QUEUE ({len(st.session_state.queue)} waiting)")
     
-    if len(st.session_state.queue) == 0:
+    if not st.session_state.queue:
         st.markdown("""
-        <div style="text-align: center; padding: 40px; background: rgba(255,255,255,0.05); border-radius: 15px;">
-            <div style="font-size: 50px;">🎭</div>
-            <h3>The lobby is empty</h3>
-            <p>No one is waiting. Add some customers to begin!</p>
+        <div style="text-align: center; padding: 50px;">
+            <div style="font-size: 80px; opacity: 0.3;">🎭</div>
+            <h3 style="opacity: 0.7;">Queue is Empty</h3>
+            <p>Add customers to start the simulation!</p>
         </div>
         """, unsafe_allow_html=True)
     else:
-        # Display the queue flow
+        # Queue Flow Indicator
         st.markdown("""
-        <div style="text-align: center; margin: 20px 0;">
-            <div style="color: #4CAF50; font-weight: bold;">⬇️ FRONT OF LINE ⬇️</div>
-            <div style="font-size: 12px; color: #888;">(Next to be served)</div>
+        <div class="queue-flow">
+            <span class="front-of-line">⬇️ FRONT (Next to Serve)</span>
+            <span class="back-of-line">⬆️ BACK (New Entries)</span>
         </div>
         """, unsafe_allow_html=True)
         
-        # Display first 6 people
-        people_to_show = st.session_state.queue[:6]
-        cols = st.columns(len(people_to_show) if len(people_to_show) > 0 else 1)
+        # Display queue in rows of 3
+        people_to_show = st.session_state.queue[:9]  # Show first 9
+        for i in range(0, len(people_to_show), 3):
+            cols = st.columns(3)
+            row_people = people_to_show[i:i+3]
+            for idx, person in enumerate(row_people):
+                with cols[idx]:
+                    vip_class = "vip" if person.get('is_vip', False) else ""
+                    vip_badge = '<div class="vip-badge">VIP</div>' if person.get('is_vip', False) else ""
+                    
+                    st.markdown(f"""
+                    <div class="ticket-card {vip_class}">
+                        {vip_badge}
+                        <div class="ticket-avatar">{person['avatar']}</div>
+                        <div class="ticket-number">#{person['id']}</div>
+                        <div class="ticket-name">{person['name']}</div>
+                        <div style="font-size: 12px; opacity: 0.7; margin-top: 5px;">
+                            {person['time']}
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
         
-        for idx, person in enumerate(people_to_show):
-            with cols[idx]:
-                vip_class = "vip" if person.get('is_vip', False) else ""
-                vip_badge = '<div class="vip-badge">VIP</div>' if person.get('is_vip', False) else ""
-                
-                st.markdown(f"""
-                <div class="ticket-card {vip_class}">
-                    {vip_badge}
-                    <div style="font-size: 40px;">{person['avatar']}</div>
-                    <div class="ticket-number">#{person['id']}</div>
-                    <div class="ticket-name">{person['name']}</div>
-                    <div style="font-size: 12px; margin-top: 5px;">{person['time']}</div>
-                </div>
-                """, unsafe_allow_html=True)
-        
-        if len(st.session_state.queue) > 6:
+        # Show remaining count
+        if len(st.session_state.queue) > 9:
+            remaining = len(st.session_state.queue) - 9
             st.markdown(f"""
-            <div style="text-align: center; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 10px; margin: 20px 0;">
-                <div style="font-size: 30px;">👥</div>
-                <p>...and <strong>{len(st.session_state.queue) - 6}</strong> more waiting behind</p>
+            <div style="text-align: center; padding: 15px; background: rgba(255,107,107,0.1); border-radius: 10px; margin-top: 20px;">
+                <div style="font-size: 24px;">👥</div>
+                <p style="margin: 5px 0;"><strong>+{remaining} more</strong> in queue</p>
+                <p style="font-size: 12px; opacity: 0.7;">Total waiting: {len(st.session_state.queue)} people</p>
             </div>
             """, unsafe_allow_html=True)
-        
-        st.markdown("""
-        <div style="text-align: center; margin: 20px 0;">
-            <div style="color: #ff4b4b; font-weight: bold;">⬆️ BACK OF LINE ⬆️</div>
-            <div style="font-size: 12px; color: #888;">(New people join here)</div>
-        </div>
-        """, unsafe_allow_html=True)
+    
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # --- COLUMN 3: HISTORY & STATS ---
 with col3:
     st.markdown('<div class="control-panel">', unsafe_allow_html=True)
-    st.subheader("📜 Service History")
     
-    if len(st.session_state.history) == 0:
+    st.markdown("### 📜 SERVICE HISTORY")
+    
+    if not st.session_state.history:
         st.markdown("""
-        <div style="text-align: center; padding: 20px;">
-            <div style="font-size: 40px;">📭</div>
-            <p><em>No tickets processed yet</em></p>
+        <div style="text-align: center; padding: 30px;">
+            <div style="font-size: 50px; opacity: 0.3;">📭</div>
+            <p style="opacity: 0.7;">No tickets served yet</p>
         </div>
         """, unsafe_allow_html=True)
     else:
+        # Quick Stats
         total_served = len(st.session_state.history)
         vip_served = sum(1 for p in st.session_state.history if p.get('is_vip', False))
         
-        # Stats
-        st.metric("Total Served", total_served)
-        if vip_served > 0:
-            st.metric("VIP Served", vip_served)
+        col_stat1, col_stat2 = st.columns(2)
+        with col_stat1:
+            st.markdown(f"""
+            <div class="stat-card">
+                <div style="font-size: 28px; font-weight: bold;">{total_served}</div>
+                <div style="font-size: 12px;">Total Served</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col_stat2:
+            if vip_served > 0:
+                st.markdown(f"""
+                <div class="stat-card">
+                    <div style="font-size: 28px; font-weight: bold; color: #FFB347;">{vip_served}</div>
+                    <div style="font-size: 12px;">VIPs Served</div>
+                </div>
+                """, unsafe_allow_html=True)
         
         st.markdown("---")
-        
-        # Recent history
         st.markdown("**Recent Activity:**")
+        
+        # Display recent history
         for person in st.session_state.history[:5]:
             vip_icon = "⭐ " if person.get('is_vip', False) else ""
+            served_time = person.get('served_time', person['time'])
+            
             st.markdown(f"""
-            <div class="history-card">
-                <strong>{vip_icon}#{person['id']} {person['name']}</strong> {person['avatar']}
-                <div style="font-size: 12px; color: #666;">Served at {person['time']}</div>
+            <div style="background: {'rgba(255,255,255,0.05)' if st.session_state.theme == 'dark' else 'rgba(0,0,0,0.05)'}; 
+                        padding: 12px; border-radius: 10px; margin: 8px 0; border-left: 3px solid #4ECDC4;">
+                <div style="display: flex; align-items: center;">
+                    <div style="font-size: 24px; margin-right: 10px;">{person['avatar']}</div>
+                    <div style="flex-grow: 1;">
+                        <div style="font-weight: bold;">{vip_icon}#{person['id']} {person['name']}</div>
+                        <div style="font-size: 11px; opacity: 0.7;">Served at {served_time}</div>
+                    </div>
+                </div>
             </div>
             """, unsafe_allow_html=True)
     
     st.markdown("</div>", unsafe_allow_html=True)
 
-# --- FOOTER WITH ALGORITHM EXPLANATION ---
-st.divider()
+# --- 7. FOOTER & ALGORITHM EXPLANATION ---
+st.markdown("---")
 
-# Algorithm explanation in tabs
-tab1, tab2, tab3 = st.tabs(["🧠 How it Works", "⭐ VIP Priority", "🎯 Key Features"])
+# Tabs for different explanations
+tab1, tab2, tab3 = st.tabs(["🎯 How It Works", "⭐ VIP System", "💡 Queue Applications"])
 
 with tab1:
     col_exp1, col_exp2 = st.columns(2)
     with col_exp1:
         st.markdown("""
-        ### Queue (FIFO) Algorithm
+        ### 🔄 Queue Algorithm (FIFO)
         
-        1. **Enqueue** 
-           ```python
-           queue.append(item)
-           ```
-           Person enters at the **back**
+        **Enqueue Operation:**
+        ```python
+        def enqueue(person):
+            queue.append(person)  # Add to end
+        ```
         
-        2. **Dequeue**
-           ```python
-           queue.pop(0)
-           ```
-           Person at the **front** leaves
+        **Dequeue Operation:**
+        ```python
+        def dequeue():
+            if queue:
+                return queue.pop(0)  # Remove from front
+        ```
+        """)
+        
+        st.markdown("""
+        ### 📊 Key Principles:
+        1. **First In, First Out (FIFO)**
+        2. **Linear Data Structure**
+        3. **Two Main Operations:**
+           - Enqueue (add to rear)
+           - Dequeue (remove from front)
+        4. **Constant Time Operations**
         """)
     
     with col_exp2:
         st.markdown("""
-        ### Real-world Examples
+        ### 🎨 Visual Elements:
         
-        • 🎬 Movie ticket lines
-        • 🖨️ Printer job queues  
-        • 📞 Customer service calls
-        • 🚗 Drive-thru orders
-        • 🎮 Game matchmaking
+        **Ticket Colors:**
+        - 🔴 Red: Regular Customers
+        - 🟡 Gold: VIP Customers
+        - 🟢 Green: Currently Serving
+        - 🔵 Blue: Served Customers
+        
+        **Icons Meaning:**
+        - 👑 VIP Priority Access
+        - ⭐ Special Treatment
+        - 🎟️ Regular Ticket
+        - 🚀 Fast Service
         """)
 
 with tab2:
     col_vip1, col_vip2 = st.columns(2)
     with col_vip1:
         st.markdown("""
-        ### VIP Priority System
+        ### 🌟 VIP Priority Rules
         
-        ⭐ **VIP customers** jump ahead of regular customers!
+        **Priority Placement:**
+        1. All VIPs go before regular customers
+        2. Among VIPs: Maintain FIFO order
+        3. Regular queue maintains standard FIFO
         
-        **Implementation:**
+        **Implementation Logic:**
         ```python
-        if is_vip:
-            # Insert after last VIP in queue
-            queue.insert(vip_position, person)
+        if person.is_vip:
+            # Find position after last VIP
+            insert_at = last_vip_index + 1
+            queue.insert(insert_at, person)
         else:
             # Regular customers go to back
             queue.append(person)
@@ -522,48 +688,70 @@ with tab2:
     
     with col_vip2:
         st.markdown("""
-        ### Priority Rules
+        ### 🎭 VIP Features:
         
-        1. All VIPs go before regular customers
-        2. Among VIPs: First-come, first-served
-        3. Regular queue maintains FIFO order
-        4. VIPs don't displace other VIPs
+        **Visual Indicators:**
+        - Gold gradient background
+        - VIP badge on ticket
+        - Star icon in display
+        - Special notification
+        
+        **Service Benefits:**
+        - Priority queue placement
+        - Special announcements
+        - Gold-colored tickets
+        - Priority service calls
         """)
 
 with tab3:
-    feat_cols = st.columns(3)
-    with feat_cols[0]:
+    col_app1, col_app2, col_app3 = st.columns(3)
+    
+    with col_app1:
         st.markdown("""
-        ### 🎨 Visual Design
-        • Gradient backgrounds
-        • Animated elements
-        • Smooth transitions
-        • Dark/Light themes
+        ### 🎬 Entertainment
+        - Movie theater queues
+        - Concert ticket lines
+        - Amusement park rides
+        - Stadium entries
         """)
     
-    with feat_cols[1]:
+    with col_app2:
         st.markdown("""
-        ### ⚡ Interactive
-        • Real-time updates
-        • VIP priority system
-        • Queue visualization
-        • Service history
+        ### 💼 Business
+        - Bank teller queues
+        - Restaurant waiting
+        - Customer service
+        - Checkout lines
         """)
     
-    with feat_cols[2]:
+    with col_app3:
         st.markdown("""
-        ### 📱 Responsive
-        • Works on all devices
-        • Clean mobile layout
-        • Intuitive controls
-        • Live status updates
+        ### 🖥️ Technology
+        - Printer job queues
+        - Network packet routing
+        - CPU scheduling
+        - Message queues
         """)
 
-# Footer
+# Final Footer
 st.markdown("---")
 st.markdown("""
-<div style="text-align: center; color: #888; font-size: 0.9em;">
-    <p>🎬 <strong>Cinema Queue Simulator</strong> | Built with Streamlit | Demonstrating FIFO Queue Algorithm</p>
-    <p>Click buttons to interact with the queue!</p>
+<div style="text-align: center; padding: 20px; opacity: 0.8;">
+    <div style="display: flex; justify-content: center; gap: 20px; margin-bottom: 10px;">
+        <span>🎬 Cinema Queue Simulator</span>
+        <span>•</span>
+        <span>🔗 Built with Streamlit</span>
+        <span>•</span>
+        <span>🧠 Demonstrating FIFO Algorithm</span>
+    </div>
+    <p style="font-size: 0.9rem; margin-top: 10px;">
+        Click buttons to interact • Watch the queue flow • Experience VIP priority!
+    </p>
 </div>
 """, unsafe_allow_html=True)
+
+# Add some interactive fun
+if st.session_state.queue:
+    progress = min(100, (len(st.session_state.history) / max(1, len(st.session_state.history) + len(st.session_state.queue))) * 100)
+    st.progress(int(progress))
+    st.caption(f"Queue Progress: {len(st.session_state.history)} served • {len(st.session_state.queue)} waiting")
